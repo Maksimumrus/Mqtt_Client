@@ -1,0 +1,94 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="Сервер: " />
+        <Spinner
+            android:id="@+id/spinner_server"
+            android:layout_height="wrap_content"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:minHeight="48dp"/>
+        <Button
+            android:id="@+id/btn_change_server"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="Изменить" />
+        <Button
+            android:id="@+id/btn_reconnect"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="↻" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/connection_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="8dp"
+        android:text="Статус: отключено"
+        android:textAlignment="center"
+        android:background="#FFE0B2"
+        android:textColor="@color/black"
+        android:visibility="visible" />
+
+    <!-- Поиск -->
+    <SearchView
+        android:id="@+id/search_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:queryHint="Поиск топика или сообщения" />
+
+    <!-- Фильтр по статусу -->
+    <RadioGroup
+        android:id="@+id/radio_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <RadioButton
+            android:id="@+id/radio_all"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="Все"
+            android:checked="true" />
+        <RadioButton
+            android:id="@+id/radio_active"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="Активные" />
+        <RadioButton
+            android:id="@+id/radio_inactive"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="Неактивные" />
+    </RadioGroup>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical" >
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_add_topic"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="16dp"
+            android:src="@android:drawable/ic_input_add" />
+
+    </FrameLayout>
+</LinearLayout>
