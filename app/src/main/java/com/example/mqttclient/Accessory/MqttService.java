@@ -19,6 +19,8 @@ import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient;
 import com.hivemq.client.mqtt.mqtt3.message.connect.connack.Mqtt3ConnAck;
 import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
@@ -34,6 +36,7 @@ public class MqttService extends Service {
     private final IBinder binder = new LocalBinder();
     private MessageListener messageListener;
     private ConnectionStatusListener statusListener;
+    private ConnectionErrorListener errorListener;
     private boolean isConnected;
 
     public interface MessageListener {
@@ -43,6 +46,10 @@ public class MqttService extends Service {
 
     public interface ConnectionStatusListener {
         void onStatusChanged(String status, boolean isConnected);
+    }
+
+    public interface ConnectionErrorListener {
+        void onConnectionError(String errorMessage, String failedUrl);
     }
 
     public class LocalBinder extends Binder {
@@ -64,18 +71,81 @@ public class MqttService extends Service {
         return START_STICKY;
     }
 
+//    private void connect() {
+//        Log.d(TAG, "Connecting to " + brokerUrl);
+//        String host = brokerUrl.replace("tcp://", "").replace("ssl://", "");
+//        String[] parts = host.split(":");
+//        String serverHost = parts[0];
+//        int serverPort = (parts.length > 1) ? Integer.parseInt(parts[1]) : 1883;
+//
+//        client = MqttClient.builder()
+//                .useMqttVersion3()
+//                .identifier("AndroidClient_" + System.currentTimeMillis())
+//                .serverHost(serverHost)
+//                .serverPort(serverPort)
+//                .buildAsync();
+//
+//        var connectBuilder = client.connectWith()
+//                .keepAlive(20);
+//
+//        String username = MqttPrefsManager.getUsernameForServer(this, brokerUrl);
+//        String password = MqttPrefsManager.getPasswordForServer(this, brokerUrl);
+//        if (username != null && !username.isEmpty()) {
+//            connectBuilder.simpleAuth()
+//                    .username(username)
+//                    .password(password != null ? password.getBytes(StandardCharsets.UTF_8) : new byte[0])
+//                    .applySimpleAuth();
+//        }
+//
+//        notifyStatus("Подключение к " + brokerUrl + "...", false);
+//
+//        CompletableFuture<Mqtt3ConnAck> future = connectBuilder.send();
+//        future.whenComplete((connAck, throwable) -> {
+//            if (throwable != null) {
+//                Log.e(TAG, "Connection failed", throwable);
+//                notifyStatus("Ошибка: " + throwable.getMessage(), false);
+//                isConnected = false;
+//            } else {
+//                Log.d(TAG, "Connected successfully");
+//                notifyStatus("Подключено к " + brokerUrl, true);
+//                Set<String> topics = MqttPrefsManager.getSubscribedTopicsSet(MqttService.this, brokerUrl);
+//                isConnected = true;
+//                client.subscribeWith().topicFilter("#").callback(this::handleMessage).send();
+//                for (String topic : topics) {
+//                    subscribe(topic);
+//                }
+//            }
+//        });
+//    }
+
     private void connect() {
         Log.d(TAG, "Connecting to " + brokerUrl);
-        String host = brokerUrl.replace("tcp://", "").replace("ssl://", "");
-        String[] parts = host.split(":");
-        String serverHost = parts[0];
-        int serverPort = (parts.length > 1) ? Integer.parseInt(parts[1]) : 1883;
+        String host;
+        int port;
+        try {
+            URI uri = new URI(brokerUrl);
+            host = uri.getHost();
+            if (host == null || host.isEmpty()) {
+                throw new URISyntaxException(brokerUrl, "Host not found");
+            }
+            port = uri.getPort();
+            if (port == -1) {
+                port = 1883; // стандартный порт MQTT
+            }
+        } catch (URISyntaxException e) {
+            Log.e(TAG, "Invalid broker URL: " + brokerUrl, e);
+            notifyStatus("Неверный URL сервера: " + brokerUrl, false);
+            if (errorListener != null) {
+                errorListener.onConnectionError("Неверный формат URL: " + e.getMessage(), brokerUrl);
+            }
+            return; // Не пытаемся подключаться
+        }
 
         client = MqttClient.builder()
                 .useMqttVersion3()
                 .identifier("AndroidClient_" + System.currentTimeMillis())
-                .serverHost(serverHost)
-                .serverPort(serverPort)
+                .serverHost(host)
+                .serverPort(port)
                 .buildAsync();
 
         var connectBuilder = client.connectWith()
@@ -98,6 +168,9 @@ public class MqttService extends Service {
                 Log.e(TAG, "Connection failed", throwable);
                 notifyStatus("Ошибка: " + throwable.getMessage(), false);
                 isConnected = false;
+                if (errorListener != null) {
+                    errorListener.onConnectionError(throwable.getMessage(), brokerUrl);
+                }
             } else {
                 Log.d(TAG, "Connected successfully");
                 notifyStatus("Подключено к " + brokerUrl, true);
@@ -112,18 +185,30 @@ public class MqttService extends Service {
     }
 
     public void changeBrokerUrl(String newUrl) {
-        if (newUrl.equals(brokerUrl)) return;
+        Log.d(TAG, "changeBrokerUrl called with: " + newUrl);
+
         brokerUrl = newUrl;
         MqttPrefsManager.saveBrokerUrl(this, brokerUrl);
-        notifyStatus("Переподключение...", false);
-        if (client != null) {
-            client.disconnect();
-        }
-        isConnected = false;
-        connect();
+        notifyStatus("Переключение на " + brokerUrl + "...", false);
 
-//        Set<String> topics = MqttPrefsManager.getSubscribedTopicsSet(this, brokerUrl);
-//        for (String topic : topics) subscribe(topic);
+        if (client != null) {
+            // Отключаемся асинхронно, затем подключаемся снова
+            client.disconnect().whenComplete((unused, throwable) -> {
+                if (throwable != null) {
+                    Log.e(TAG, "Disconnect error", throwable);
+                }
+                client = null;
+                isConnected = false;
+                connect();
+            });
+        } else {
+            isConnected = false;
+            connect();
+        }
+    }
+
+    public void setConnectionErrorListener(ConnectionErrorListener listener) {
+        this.errorListener = listener;
     }
 
     private void handleMessage(Mqtt3Publish publish) {

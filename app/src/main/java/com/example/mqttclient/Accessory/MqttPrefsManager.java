@@ -17,14 +17,46 @@ public class MqttPrefsManager {
     private static final String KEY_NOTIFICATIONS_ENABLED = "notifications_enabled";
     public static final String DEFAULT_BROKER = "tcp://broker.emqx.io:1883";
 
-    // Нормализация: mqtt:// → tcp://
     private static String normalizeUrl(String url) {
         if (url == null) return null;
         url = url.trim();
+        // Удаляем возможный префикс mqtt://
         if (url.startsWith("mqtt://")) {
-            return "tcp://" + url.substring(7);
+            url = url.substring(7);
         }
+        // Добавляем tcp:// если нет схемы
+        if (!url.startsWith("tcp://") && !url.startsWith("ssl://")) {
+            url = "tcp://" + url;
+        }
+        // Исправляем лишние слеши
+        url = url.replace("tcp:///", "tcp://");
+        url = url.replace("ssl:///", "ssl://");
         return url;
+    }
+
+    public static List<String> getDisplayServerList(Context context) {
+        List<String> fullList = getServerList(context);
+        List<String> displayList = new ArrayList<>();
+        for (String url : fullList) {
+            displayList.add(displayUrl(url));   // убираем схему
+        }
+        return displayList;
+    }
+
+    // Преобразование полного URL в отображаемый (без tcp://)
+    public static String displayUrl(String fullUrl) {
+        if (fullUrl == null) return "";
+        String result = fullUrl;
+        if (result.startsWith("tcp://")) result = result.substring(6);
+        if (result.startsWith("ssl://")) result = result.substring(6);
+        return result;
+    }
+
+    // Преобразование отображаемого имени в полный URL
+    public static String fullUrl(String display) {
+        if (display == null) return "";
+        if (display.startsWith("tcp://") || display.startsWith("ssl://")) return display;
+        return "tcp://" + display;
     }
 
     public static void saveBrokerUrl(Context context, String url) {
@@ -75,6 +107,30 @@ public class MqttPrefsManager {
                 .putString(serverUrl + "_user", username)
                 .putString(serverUrl + "_pass", password)
                 .apply();
+    }
+
+    public static void removeServerData(Context context, String serverUrl) {
+        serverUrl = normalizeUrl(serverUrl);
+        SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+
+        // Удаляем подписки, учётные данные, сам сервер из списка
+        editor.remove(getSubscribedTopicsKey(serverUrl));
+        editor.remove(serverUrl + "_user");
+        editor.remove(serverUrl + "_pass");
+
+        List<String> servers = getServerList(context);
+        if (servers.remove(serverUrl)) {
+            String json = new Gson().toJson(servers);
+            editor.putString("server_list", json);
+        }
+
+        String current = getBrokerUrl(context);
+        if (serverUrl.equals(current)) {
+            String newCurrent = servers.isEmpty() ? DEFAULT_BROKER : servers.get(0);
+            editor.putString(KEY_BROKER_URL, newCurrent);
+        }
+        editor.apply();
     }
 
     public static String getUsernameForServer(Context context, String serverUrl) {

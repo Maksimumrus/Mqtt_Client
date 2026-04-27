@@ -1,19 +1,18 @@
 package com.example.mqttclient;
 
+import static com.example.mqttclient.Accessory.MqttPrefsManager.displayUrl;
+
 import android.os.Bundle;
-import android.text.TextUtils;
+import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.SearchView;
-import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -34,7 +33,11 @@ import com.example.mqttclient.Accessory.TopicRepository;
 import com.example.mqttclient.ViewModels.AllTopicsViewModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
+import com.google.android.material.textfield.TextInputLayout;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -44,7 +47,7 @@ public class AllTopicsFragment extends Fragment implements MainActivity.MqttServ
     private RecyclerView recyclerView;
     protected SearchView searchView;
     protected AutoCompleteTextView serverSpinner;
-    protected Button btnChangeServer;
+    protected Button btnAddServer;
     protected Button btnReconnect;
     private CircularProgressIndicator progressBar;
     private FloatingActionButton fabClear;
@@ -64,13 +67,13 @@ public class AllTopicsFragment extends Fragment implements MainActivity.MqttServ
         recyclerView = view.findViewById(R.id.recycler_view);
         searchView = view.findViewById(R.id.search_view);
         serverSpinner = view.findViewById(R.id.spinner_server);
-        btnChangeServer = view.findViewById(R.id.btn_change_server);
+        btnAddServer = view.findViewById(R.id.btn_add_server);
         btnReconnect = view.findViewById(R.id.btn_reconnect);
         progressBar = view.findViewById(R.id.progress_bar);
         fabClear = view.findViewById(R.id.fab_clear);
 
         loadServerSpinner();
-        btnChangeServer.setOnClickListener(v -> showAddServerDialog());
+        btnAddServer.setOnClickListener(v -> showServerDialog(null, null, null));
         btnReconnect.setOnClickListener(v -> {
             if (mqttService != null) {
                 mqttService.changeBrokerUrl(MqttPrefsManager.getBrokerUrl(getContext()));
@@ -143,27 +146,36 @@ public class AllTopicsFragment extends Fragment implements MainActivity.MqttServ
     @Override
     public void onMqttServiceReady(MqttService service) {
         this.mqttService = service;
-
+        // Слушатель статуса подключения
         service.setConnectionStatusListener((status, isConnected) -> {
             if (getActivity() == null) return;
             getActivity().runOnUiThread(() -> {
+                String shortUrl = MqttPrefsManager.displayUrl(MqttPrefsManager.getBrokerUrl(getContext()));
+                String displayStatus = isConnected ? "Подключено к " + shortUrl : "Отключено";
                 TextView statusView = getView().findViewById(R.id.connection_status);
                 View ledIndicator = getView().findViewById(R.id.led_indicator);
-                if (statusView != null) {
-                    statusView.setText(status);
-                }
+                statusView.setText(displayStatus);
                 if (ledIndicator != null) {
                     ledIndicator.setBackgroundResource(isConnected ? R.drawable.circle_green : R.drawable.circle_red);
                 }
             });
         });
 
+        service.setConnectionErrorListener((errorMessage, failedUrl) -> {
+            if (getActivity() == null) return;
+            getActivity().runOnUiThread(() -> {
+                // Получаем сохранённые учётные данные для этого URL
+                String username = MqttPrefsManager.getUsernameForServer(getContext(), failedUrl);
+                String password = MqttPrefsManager.getPasswordForServer(getContext(), failedUrl);
+                showServerDialog(failedUrl, username, password);
+                UiUtils.showError(getContext(), "Ошибка подключения: " + errorMessage);
+            });
+        });
+
         // Подписываемся на обнаружение топиков (через MqttService)
         service.setMessageListener(new MqttService.MessageListener() {
             @Override
-            public void onMessageArrived(String topic, String payload, long timestamp, boolean retained) {
-                // не нужно здесь ничего, т.к. обновление происходит через TopicRepository
-            }
+            public void onMessageArrived(String topic, String payload, long timestamp, boolean retained) { }
 
             @Override
             public void onTopicDiscovered(String topic, long timestamp, boolean retained) {
@@ -190,25 +202,27 @@ public class AllTopicsFragment extends Fragment implements MainActivity.MqttServ
     }
 
     protected void loadServerSpinner() {
-        serverList = MqttPrefsManager.getServerList(getContext());
-        String current = MqttPrefsManager.getBrokerUrl(getContext());
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_dropdown_item_1line, serverList);
+        List<String> fullServers = MqttPrefsManager.getServerList(getContext());
+        List<String> displayServers = new ArrayList<>();
+        for (String url : fullServers) {
+            displayServers.add(MqttPrefsManager.displayUrl(url));
+        }
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(),
+                android.R.layout.simple_dropdown_item_1line, displayServers);
         serverSpinner.setAdapter(adapter);
-        serverSpinner.setText(current, false);
+
+        String currentFull = MqttPrefsManager.getBrokerUrl(getContext());
+        String currentDisplay = MqttPrefsManager.displayUrl(currentFull);
+        serverSpinner.setText(currentDisplay, false);
         serverSpinner.setThreshold(1);
+
         serverSpinner.setOnClickListener(v -> serverSpinner.showDropDown());
         serverSpinner.setOnItemClickListener((parent, view, position, id) -> {
-            String selected = serverList.get(position);
-            String currentUrl = MqttPrefsManager.getBrokerUrl(getContext());
-            if (!selected.equals(currentUrl)) {
-                MqttPrefsManager.saveBrokerUrl(getContext(), selected);
-                TopicRepository repo = TopicRepository.getInstance(requireActivity().getApplication());
-                repo.setCurrentServerUrl(selected);
-                if (mqttService != null) {
-                    mqttService.changeBrokerUrl(selected);
-                }
-                viewModel.setServerUrl(selected);
-                refreshList();
+            String selectedDisplay = displayServers.get(position);
+            String selectedFull = MqttPrefsManager.fullUrl(selectedDisplay);
+            String currentFullUrl = MqttPrefsManager.getBrokerUrl(getContext());
+            if (!selectedFull.equals(currentFullUrl)) {
+                applyServerChange(selectedFull);
             }
         });
 
@@ -218,77 +232,141 @@ public class AllTopicsFragment extends Fragment implements MainActivity.MqttServ
         });
     }
 
-    protected void showAddServerDialog() {
+    private void showServerDialog(@Nullable String oldServerUrl, @Nullable String oldUsername, @Nullable String oldPassword) {
         AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle("Добавить MQTT сервер");
+        builder.setTitle(oldServerUrl == null ? "Добавить MQTT сервер" : "Редактировать сервер");
+
         LinearLayout layout = new LinearLayout(getContext());
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(50,20,50,20);
-        EditText inputUrl = new EditText(getContext());
-        inputUrl.setHint("tcp://192.168.1.100:1883");
-        layout.addView(inputUrl);
+        layout.setPadding(50, 30, 50, 30);
+
+        // Поле "Хост" (без tcp://)
+        TextInputLayout hostLayout = new TextInputLayout(getContext());
+        hostLayout.setHint("Хост (например, broker.emqx.io)");
+        EditText inputHost = new EditText(getContext());
+        inputHost.setInputType(InputType.TYPE_CLASS_TEXT);
+        hostLayout.addView(inputHost);
+        layout.addView(hostLayout);
+
+        // Поле "Порт"
+        TextInputLayout portLayout = new TextInputLayout(getContext());
+        portLayout.setHint("Порт (1883 по умолчанию)");
+        EditText inputPort = new EditText(getContext());
+        inputPort.setInputType(InputType.TYPE_CLASS_NUMBER);
+        portLayout.addView(inputPort);
+        layout.addView(portLayout);
+
+        // Логин
+        TextInputLayout userLayout = new TextInputLayout(getContext());
+        userLayout.setHint("Логин (опционально)");
         EditText inputUser = new EditText(getContext());
-        inputUser.setHint("Логин (опционально)");
-        layout.addView(inputUser);
+        userLayout.addView(inputUser);
+        layout.addView(userLayout);
+
+        // Пароль
+        TextInputLayout passLayout = new TextInputLayout(getContext());
+        passLayout.setHint("Пароль (опционально)");
         EditText inputPass = new EditText(getContext());
-        inputPass.setHint("Пароль (опционально)");
-        inputPass.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        layout.addView(inputPass);
+        inputPass.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passLayout.addView(inputPass);
+        layout.addView(passLayout);
+
+        // Если редактируем существующий — заполняем поля
+        if (oldServerUrl != null) {
+            try {
+                URI uri = new URI(oldServerUrl);
+                String host = uri.getHost();
+                int port = uri.getPort();
+                inputHost.setText(host != null ? host : displayUrl(oldServerUrl));
+                if (port != -1) inputPort.setText(String.valueOf(port));
+            } catch (URISyntaxException ignored) {}
+            if (oldUsername != null) inputUser.setText(oldUsername);
+            if (oldPassword != null) inputPass.setText(oldPassword);
+        }
+
         builder.setView(layout);
-        builder.setPositiveButton("Добавить", (dialog, which) -> {
-            String newServer = inputUrl.getText().toString().trim();
+
+        builder.setPositiveButton("Сохранить", (dialog, which) -> {
+            String host = inputHost.getText().toString().trim();
+            String portStr = inputPort.getText().toString().trim();
             String user = inputUser.getText().toString().trim();
             String pass = inputPass.getText().toString().trim();
-            if (!newServer.isEmpty()) {
-                MqttPrefsManager.addServer(getContext(), newServer);
-                if (!user.isEmpty() || !pass.isEmpty())
-                    MqttPrefsManager.saveServerCredentials(getContext(), newServer, user, pass);
-                loadServerSpinner();
-                serverSpinner.setSelection(serverList.size() - 1);
+
+            if (host.isEmpty()) {
+                UiUtils.showToast(getContext(), "Введите хост");
+                return;
             }
+            int port = 1883;
+            if (!portStr.isEmpty()) {
+                try {
+                    port = Integer.parseInt(portStr);
+                } catch (NumberFormatException e) {
+                    UiUtils.showToast(getContext(), "Неверный порт");
+                    return;
+                }
+            }
+            String newServerUrl = "tcp://" + host + ":" + port;
+            // Добавляем в список
+            MqttPrefsManager.addServer(getContext(), newServerUrl);
+            if (!user.isEmpty() || !pass.isEmpty()) {
+                MqttPrefsManager.saveServerCredentials(getContext(), newServerUrl, user, pass);
+            }
+            loadServerSpinner();
+            // Если это был текущий сервер — переключаемся
+            serverSpinner.setText(newServerUrl, false);
+            // Вызываем переключение через обработчик
+            applyServerChange(newServerUrl);
         });
+
+        builder.setNeutralButton("Удалить", (d, w) -> {
+            // Удаляем данные сервера из SharedPreferences
+            MqttPrefsManager.removeServerData(getContext(), oldServerUrl);
+            // Удаляем сообщения и топики из БД
+            TopicRepository.getInstance(requireActivity().getApplication())
+                    .deleteAllDataForServer(oldServerUrl);
+
+            // Обновляем спиннер и текущий сервер
+            loadServerSpinner();
+            String current = MqttPrefsManager.getBrokerUrl(getContext());
+            applyServerChange(current);
+            refreshList();
+        });
+
         builder.setNegativeButton("Отмена", null);
         builder.show();
+    }
+
+    // Вспомогательный метод для смены сервера
+    private void applyServerChange(String newServerUrl) {
+        String current = MqttPrefsManager.getBrokerUrl(getContext());
+        if (!newServerUrl.equals(current)) {
+            MqttPrefsManager.saveBrokerUrl(getContext(), newServerUrl);
+            TopicRepository repo = TopicRepository.getInstance(requireActivity().getApplication());
+            repo.setCurrentServerUrl(newServerUrl);
+            if (mqttService != null) {
+                mqttService.changeBrokerUrl(newServerUrl);
+            }
+            MqttPrefsManager.saveBrokerUrl(getContext(), newServerUrl);
+            refreshList();
+        }
     }
 
     private void showServerManagerDialog() {
         List<String> servers = MqttPrefsManager.getServerList(getContext());
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, servers);
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle("Управление серверами");
-        builder.setAdapter(adapter, (dialog, which) -> {
-            // Редактирование или удаление
-            String selected = servers.get(which);
-            showEditServerDialog(selected, which);
-        });
-        builder.setPositiveButton("Добавить", (d, w) -> showAddServerDialog());
-        builder.setNegativeButton("Закрыть", null);
-        builder.show();
-    }
-
-    private void showEditServerDialog(String server, int position) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle("Редактировать сервер");
-        final EditText input = new EditText(getContext());
-        input.setText(server);
-        builder.setView(input);
-        builder.setPositiveButton("Сохранить", (d, w) -> {
-            String newServer = input.getText().toString().trim();
-            if (!newServer.isEmpty()) {
-                List<String> servers = MqttPrefsManager.getServerList(getContext());
-                servers.set(position, newServer);
-                MqttPrefsManager.saveServerList(getContext(), servers);
-                loadServerSpinner();
-            }
-        });
-        builder.setNeutralButton("Удалить", (d, w) -> {
-            List<String> servers = MqttPrefsManager.getServerList(getContext());
-            servers.remove(position);
-            MqttPrefsManager.saveServerList(getContext(), servers);
-            loadServerSpinner();
-        });
-        builder.setNegativeButton("Отмена", null);
-        builder.show();
+        String[] items = servers.toArray(new String[0]);
+        new AlertDialog.Builder(getContext())
+                .setTitle("Управление серверами")
+                .setItems(items, (dialog, which) -> {
+                    String selectedUrl = servers.get(which);
+                    // Получаем сохранённые для этого URL логин/пароль
+                    String username = MqttPrefsManager.getUsernameForServer(getContext(), selectedUrl);
+                    String password = MqttPrefsManager.getPasswordForServer(getContext(), selectedUrl);
+                    // Показываем единый диалог редактирования
+                    showServerDialog(selectedUrl, username, password);
+                })
+                .setPositiveButton("Добавить", (d, w) -> showServerDialog(null, null, null))
+                .setNegativeButton("Отмена", null)
+                .show();
     }
 
     protected void applyFilters() {

@@ -41,7 +41,7 @@
                 android:cursorVisible="false" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_change_server"
+                android:id="@+id/btn_add_server"
                 style="@style/Widget.Material3.Button.IconButton"
                 android:layout_width="48dp"
                 android:layout_height="48dp"

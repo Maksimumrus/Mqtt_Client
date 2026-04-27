@@ -28,6 +28,9 @@ public interface MessageDao {
     @Query("DELETE FROM messages WHERE topic = :topic AND serverUrl = :serverUrl")
     void clearTopicHistory(String topic, String serverUrl);
 
+    @Query("DELETE FROM messages WHERE serverUrl = :serverUrl")
+    void deleteAllForServer(String serverUrl);
+
     @Query("DELETE FROM messages WHERE topic = :topic AND timestamp < :beforeTime")
     void deleteOldMessages(String topic, long beforeTime);
 }

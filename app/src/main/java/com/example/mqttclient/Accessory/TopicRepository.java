@@ -175,6 +175,14 @@ public class TopicRepository {
         return AppDatabase.getInstance(app).allTopicsDao().getAllTopicsForServer(serverUrl);
     }
 
+    public void deleteAllDataForServer(String serverUrl) {
+        executor.execute(() -> {
+            AppDatabase db = AppDatabase.getInstance(app);
+            db.messageDao().deleteAllForServer(serverUrl);
+            db.allTopicsDao().deleteAllForServer(serverUrl);
+        });
+    }
+
     public void clearAllTopicsForServer() {
         executor.execute(() -> {
             AppDatabase.getInstance(app).allTopicsDao().deleteAllForServer(currentServerUrl);
