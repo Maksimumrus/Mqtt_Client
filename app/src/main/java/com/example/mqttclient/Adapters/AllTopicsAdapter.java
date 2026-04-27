@@ -29,6 +29,7 @@ public class AllTopicsAdapter extends RecyclerView.Adapter<AllTopicsAdapter.View
 
     private String filterQuery = "";
     private List<AllTopicsEntity> originalTopics = new ArrayList<>();
+    private Set<Integer> expandedPositions = new HashSet<>();
 
     public interface OnTopicActionListener {
         void onTopicClick(String topicName);
@@ -43,7 +44,6 @@ public class AllTopicsAdapter extends RecyclerView.Adapter<AllTopicsAdapter.View
     public void setTopics(List<AllTopicsEntity> newTopics) {
         this.originalTopics = newTopics != null ? newTopics : new ArrayList<>();
         applyFilters();
-//        notifyDataSetChanged();
     }
 
     public void setFilter(String query) {
@@ -61,6 +61,7 @@ public class AllTopicsAdapter extends RecyclerView.Adapter<AllTopicsAdapter.View
             filtered.add(t);
         }
         this.topics = filtered;
+        expandedPositions.clear();
         notifyDataSetChanged();
     }
 
@@ -101,7 +102,8 @@ public class AllTopicsAdapter extends RecyclerView.Adapter<AllTopicsAdapter.View
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         AllTopicsEntity topic = topics.get(position);
-        holder.bind(topic);
+        boolean isExpanded = expandedPositions.contains(position);
+        holder.bind(topic, isExpanded, position);
     }
 
     @Override
@@ -110,52 +112,69 @@ public class AllTopicsAdapter extends RecyclerView.Adapter<AllTopicsAdapter.View
     }
 
     class ViewHolder extends RecyclerView.ViewHolder {
-        TextView topicName, lastMessage, timestamp, status;
-        MaterialButton btnAction;
-//        ImageView ivRetainedIndicator;
+        ImageButton btnExpand, btnAction;
+        TextView topicName;
+        TextView lastMessageCompact, lastMessageExpanded;
+        TextView timestamp, statusText;
+        ImageView ivRetained;
+        View expandedContent;
 
         ViewHolder(@NonNull View itemView) {
             super(itemView);
+            btnExpand = itemView.findViewById(R.id.btn_expand);
             topicName = itemView.findViewById(R.id.topic_name);
-            lastMessage = itemView.findViewById(R.id.last_message);
+            lastMessageCompact = itemView.findViewById(R.id.last_message_compact);
+            lastMessageExpanded = itemView.findViewById(R.id.last_message_expanded);
             timestamp = itemView.findViewById(R.id.timestamp);
-            status = itemView.findViewById(R.id.status);
+            statusText = itemView.findViewById(R.id.status);
             btnAction = itemView.findViewById(R.id.btn_action);
-//            ivRetainedIndicator = itemView.findViewById(R.id.iv_retained_indicator);
+            ivRetained = itemView.findViewById(R.id.iv_retained);
+            expandedContent = itemView.findViewById(R.id.expanded_content);
         }
 
-        void bind(AllTopicsEntity topic) {
+        void bind(AllTopicsEntity topic, boolean isExpanded, int position) {
             topicName.setText(topic.topicName);
-//            lastMessage.setText("Последнее: " + dateFormat.format(topic.lastSeenTimestamp));
-            timestamp.setText(dateFormat.format(topic.lastSeenTimestamp));
-            timestamp.setVisibility(View.VISIBLE);
 
-            status.setText(topic.isHasRetained() ? "Retained" : "Временный");
-            status.setVisibility(View.VISIBLE);
+            String msg = topic.getLastMessage();
+            String displayMsg = (msg != null && !msg.isEmpty()) ? msg : "нет сообщений";
+            lastMessageCompact.setText(displayMsg);
+            lastMessageExpanded.setText(displayMsg);
 
-            View statusIndicator = itemView.findViewById(R.id.status_indicator);
-            statusIndicator.setBackgroundResource(topic.isHasRetained() ? R.drawable.circle_green : R.drawable.circle_gray);
+            long time = topic.getLastMessageTimestamp() > 0 ? topic.getLastMessageTimestamp() : topic.lastSeenTimestamp;
+            timestamp.setText(dateFormat.format(time));
 
-//            if (topic.isHasRetained()) {
-//                ivRetainedIndicator.setImageResource(R.drawable.ic_check);
-//            } else {
-//                ivRetainedIndicator.setImageResource(R.drawable.ic_temporary);
-//            }
-//            ivRetainedIndicator.setVisibility(View.VISIBLE);
+            if (topic.isHasRetained()) {
+                ivRetained.setImageResource(R.drawable.ic_bookmark_filled);
+                ivRetained.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.orange_500));
+            } else {
+                ivRetained.setImageResource(R.drawable.ic_bookmark_outline);
+                ivRetained.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.gray_400));
+            }
 
             boolean isSubscribed = subscribedTopics.contains(topic.topicName);
-            btnAction.setIconResource(isSubscribed ? android.R.drawable.checkbox_on_background : android.R.drawable.ic_input_add);
-            btnAction.setIconTint(ColorStateList.valueOf(ContextCompat.getColor(itemView.getContext(), R.color.black)));
+            btnAction.setImageResource(isSubscribed ? R.drawable.ic_check : R.drawable.ic_add);
+            btnAction.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.black));
+            btnAction.setOnClickListener(v -> {
+                if (listener == null) return;
+                if (isSubscribed) listener.onRemoveFromFavoritesClick(topic.topicName);
+                else listener.onAddToFavoritesClick(topic.topicName);
+            });
 
-            if (isSubscribed) {
-                btnAction.setOnClickListener(v -> {
-                    if (listener != null) listener.onRemoveFromFavoritesClick(topic.topicName);
-                });
+            btnExpand.setImageResource(isExpanded ? R.drawable.ic_arrow_down : R.drawable.ic_arrow_right);
+            btnExpand.setOnClickListener(v -> {
+                if (isExpanded) expandedPositions.remove(position);
+                else expandedPositions.add(position);
+                notifyItemChanged(position);
+            });
+
+            if (isExpanded) {
+                expandedContent.setVisibility(View.VISIBLE);
+                lastMessageCompact.setVisibility(View.GONE);
+                statusText.setVisibility(View.GONE);
             } else {
-                btnAction.setOnClickListener(v -> {
-                    if (listener != null) listener.onAddToFavoritesClick(topic.topicName);
-                });
+                expandedContent.setVisibility(View.GONE);
             }
+
             itemView.setOnClickListener(v -> {
                 if (listener != null) listener.onTopicClick(topic.topicName);
             });

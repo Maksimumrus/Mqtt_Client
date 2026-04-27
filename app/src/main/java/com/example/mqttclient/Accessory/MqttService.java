@@ -256,6 +256,8 @@ public class MqttService extends Service {
         entity.serverUrl = brokerUrl;
         AppDatabase.getInstance(this).messageDao().insert(entity);
 
+        TopicRepository.getInstance(this.getApplication()).updateTopicLastMessage(topic, payload, timestamp);
+
         if (MqttPrefsManager.areNotificationsEnabled(this) &&
                 MqttPrefsManager.getSubscribedTopicsSet(this, brokerUrl).contains(topic)) {
             showNotification(topic, payload);
@@ -264,6 +266,40 @@ public class MqttService extends Service {
             messageListener.onMessageArrived(topic, payload, timestamp, false);
         }
     }
+
+//    private void handleMessage(Mqtt3Publish publish) {
+//        String topic = publish.getTopic().toString();
+//        String payload = new String(publish.getPayloadAsBytes(), StandardCharsets.UTF_8);
+//        long timestamp = System.currentTimeMillis();
+//        boolean retained = publish.isRetain();
+//
+//        TopicRepository repo = TopicRepository.getInstance(this.getApplication());
+//
+//        // Сохраняем сообщение в БД
+//        MessageEntity entity = new MessageEntity();
+//        entity.topic = topic;
+//        entity.payload = payload;
+//        entity.timestamp = timestamp;
+//        entity.qos = publish.getQos().getCode();
+//        entity.retained = retained ? 1 : 0;
+//        entity.serverUrl = brokerUrl;
+//        AppDatabase.getInstance(this).messageDao().insert(entity);
+//
+//        // Обновляем последнее сообщение в таблице all_topics
+//        repo.updateTopicLastMessage(topic, payload, timestamp);
+//
+//        // Обнаружение топика (если нужно)
+//        if (messageListener != null) {
+//            messageListener.onTopicDiscovered(topic, timestamp, retained);
+//            messageListener.onMessageArrived(topic, payload, timestamp, retained);
+//        }
+//
+//        // Уведомление для обычных сообщений (не retained)
+//        if (!retained && MqttPrefsManager.areNotificationsEnabled(this) &&
+//                MqttPrefsManager.getSubscribedTopicsSet(this, brokerUrl).contains(topic)) {
+//            showNotification(topic, payload);
+//        }
+//    }
 
     public void subscribe(String topic) {
         if (topic == null || topic.trim().isEmpty()) return;
@@ -312,15 +348,6 @@ public class MqttService extends Service {
                     });
         }
         MqttPrefsManager.removeSubscribedTopic(this, brokerUrl, topic);
-    }
-
-    public void publish(String topic, String payload) {
-        if (client != null) {
-            client.publishWith()
-                    .topic(topic)
-                    .payload(payload.getBytes(StandardCharsets.UTF_8))
-                    .send();
-        }
     }
 
     @Override

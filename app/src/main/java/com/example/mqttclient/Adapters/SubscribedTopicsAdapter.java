@@ -1,7 +1,5 @@
 package com.example.mqttclient.Adapters;
 
-import android.graphics.Color;
-import android.graphics.PorterDuff;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,6 +18,7 @@ import com.google.android.material.button.MaterialButton;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -30,9 +29,10 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
     private OnTopicActionListener listener;
 
     private String filterQuery = "";
-    private int statusFilter = 0; // 0-все, 1-активные, 2-неактивные
+    private int statusFilter = 0;
 
     private List<Topic> originalTopics = new ArrayList<>();
+    private Set<Integer> expandedPositions = new HashSet<>();
 
     public interface OnTopicActionListener {
         void onTopicClick(Topic topic);
@@ -71,6 +71,8 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
             filtered.add(t);
         }
         this.topics = filtered;
+        expandedPositions.clear();
+        for (int i = 0; i < topics.size(); i++) expandedPositions.add(i);
         notifyDataSetChanged();
     }
 
@@ -85,7 +87,8 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Topic topic = topics.get(position);
-        holder.bind(topic);
+        boolean isExpanded = expandedPositions.contains(position);
+        holder.bind(topic, isExpanded, position);
     }
 
     @Override
@@ -95,75 +98,82 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
 
     // Внутренний класс ViewHolder
     class ViewHolder extends RecyclerView.ViewHolder {
-        CardView cardView;
-        TextView topicName, lastMessage, timestamp, status;
-//        TextView clientId;
-        MaterialButton btnAction;
-//        ImageView ivRetainedIndicator;
+        ImageButton btnExpand, btnAction;
+        TextView topicName;
+        TextView lastMessageCompact, lastMessageExpanded;
+        TextView timestamp, statusText;
+        ImageView ivRetained;
+        View expandedContent;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
-            cardView = itemView.findViewById(R.id.card_view);
+            btnExpand = itemView.findViewById(R.id.btn_expand);
             topicName = itemView.findViewById(R.id.topic_name);
-            lastMessage = itemView.findViewById(R.id.last_message);
+            lastMessageCompact = itemView.findViewById(R.id.last_message_compact);
+            lastMessageExpanded = itemView.findViewById(R.id.last_message_expanded);
             timestamp = itemView.findViewById(R.id.timestamp);
-            status = itemView.findViewById(R.id.status);
-//            clientId = itemView.findViewById(R.id.client_id);
+            statusText = itemView.findViewById(R.id.status);
             btnAction = itemView.findViewById(R.id.btn_action);
-//            ivRetainedIndicator = itemView.findViewById(R.id.iv_retained_indicator);
+            ivRetained = itemView.findViewById(R.id.iv_retained);
+            expandedContent = itemView.findViewById(R.id.expanded_content);
         }
 
-        void bind(Topic topic) {
+        void bind(Topic topic, boolean isExpanded, int position) {
             topicName.setText(topic.getName());
 
-            String lastMsg = topic.getLastMessage();
-            lastMessage.setText(lastMsg != null ? lastMsg : "нет сообщений");
+            String msg = topic.getLastMessage();
+            String displayMsg = (msg != null && !msg.isEmpty()) ? msg : "нет сообщений";
+            lastMessageCompact.setText(displayMsg);
+            lastMessageExpanded.setText(displayMsg);
 
-            View statusIndicator = itemView.findViewById(R.id.status_indicator);
-            statusIndicator.setBackgroundResource(topic.isActive() ? R.drawable.circle_green : R.drawable.circle_red);
-
+            // Время последнего сообщения
             if (topic.getLastMessageTime() != null) {
-                String timeStr = new SimpleDateFormat("dd.MM HH:mm", Locale.getDefault())
-                        .format(topic.getLastMessageTime());
-                timestamp.setText(timeStr);
+                SimpleDateFormat sdf = new SimpleDateFormat("dd.MM HH:mm", Locale.getDefault());
+                timestamp.setText(sdf.format(topic.getLastMessageTime()));
             } else {
                 timestamp.setText("");
             }
 
-            boolean active = false;
-            if (topic.getLastMessageTime() != null && !topic.isHasRetained()) {
-                long diff = System.currentTimeMillis() - topic.getLastMessageTime().getTime();
-                active = diff < 5 * 60 * 1000; // 5 минут
+            // Retained иконка
+            if (topic.isHasRetained()) {
+                ivRetained.setImageResource(R.drawable.ic_bookmark_filled);
+                ivRetained.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.orange_500));
+            } else {
+                ivRetained.setImageResource(R.drawable.ic_bookmark_outline);
+                ivRetained.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.gray_400));
             }
 
-            statusIndicator.setBackgroundResource(active ? R.drawable.circle_green : R.drawable.circle_red);
-            status.setText(active ? "Активен" : "Неактивен");
+            boolean active = topic.isActive();
+            statusText.setText(active ? "Активен" : "Неактивен");
+            statusText.setTextColor(active ?
+                    ContextCompat.getColor(itemView.getContext(), R.color.green) :
+                    ContextCompat.getColor(itemView.getContext(), R.color.red));
 
-//            boolean active = topic.isActive();
-//            status.setTextColor(active ? Color.GREEN : Color.GRAY);
-
-//            String cid = topic.getClientId();
-//            clientId.setText("ID: " + (cid != null ? cid : "?"));
-
-//            if (topic.isHasRetained()) {
-//                ivRetainedIndicator.setImageResource(R.drawable.ic_check);
-//            } else {
-//                ivRetainedIndicator.setImageResource(R.drawable.ic_temporary);
-//            }
-//            ivRetainedIndicator.setVisibility(View.VISIBLE);
-
-            btnAction.setIconResource(android.R.drawable.ic_menu_delete);
+            // Кнопка отписки
+            btnAction.setImageResource(android.R.drawable.ic_menu_delete);
             btnAction.setOnClickListener(v -> {
                 if (listener != null) listener.onUnsubscribeClick(topic);
             });
 
-            cardView.setOnClickListener(v -> {
-                if (listener != null) listener.onTopicClick(topic);
+            btnExpand.setImageResource(isExpanded ? R.drawable.ic_arrow_down : R.drawable.ic_arrow_right);
+            btnExpand.setOnClickListener(v -> {
+                if (isExpanded) expandedPositions.remove(position);
+                else expandedPositions.add(position);
+                notifyItemChanged(position);
             });
 
-//            // Цвет карточки в зависимости от активности
-//            int bgColor = active ? 0x2200AA00 : 0xFFFFFF;
-//            cardView.setCardBackgroundColor(bgColor);
+            if (isExpanded) {
+                expandedContent.setVisibility(View.VISIBLE);
+                lastMessageCompact.setVisibility(View.GONE);
+            } else {
+                expandedContent.setVisibility(View.GONE);
+                lastMessageCompact.setVisibility(View.VISIBLE);
+            }
+
+            // Клик по карточке
+            itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onTopicClick(topic);
+            });
         }
     }
 }

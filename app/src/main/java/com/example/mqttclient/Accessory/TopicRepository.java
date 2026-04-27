@@ -140,23 +140,57 @@ public class TopicRepository {
         }
     }
 
+//    public void addDiscoveredTopic(String topic, long timestamp, boolean retained) {
+//        executor.execute(() -> {
+//            AllTopicsEntity entity = new AllTopicsEntity(topic, timestamp, retained, currentServerUrl);
+//
+//            AllTopicsEntity existing = getTopicEntitySync(topic);
+//            if (existing != null) {
+//                existing.lastSeenTimestamp = Math.max(existing.lastSeenTimestamp, timestamp);
+//                existing.hasRetained = existing.hasRetained || retained;
+//                AppDatabase.getInstance(app).allTopicsDao().update(existing);
+//            } else {
+//                AppDatabase.getInstance(app).allTopicsDao().insert(entity);
+//            }
+//        });
+//    }
+
     public void addDiscoveredTopic(String topic, long timestamp, boolean retained) {
         executor.execute(() -> {
+            // Получаем последнее сообщение из БД для этого топика
+            List<MessageEntity> lastMsg = AppDatabase.getInstance(app).messageDao()
+                    .getLastMessages(topic, currentServerUrl, 1);
+            String lastMessageText = null;
+            long lastMsgTimestamp = 0;
+            if (!lastMsg.isEmpty()) {
+                MessageEntity msg = lastMsg.get(0);
+                lastMessageText = msg.payload;
+                lastMsgTimestamp = msg.timestamp;
+            }
+
             AllTopicsEntity entity = new AllTopicsEntity(topic, timestamp, retained, currentServerUrl);
-            // Проверяем, существует ли уже такой топик для этого сервера
-            // Используем insert с IGNORE, а затем обновляем время
-            AppDatabase.getInstance(app).allTopicsDao().insert(entity);
-            // Обновляем время последнего появления
+            if (lastMessageText != null) {
+                entity.setLastMessage(lastMessageText);
+                entity.setLastMessageTimestamp(lastMsgTimestamp);
+            }
+
             AllTopicsEntity existing = getTopicEntitySync(topic);
-            if (existing != null && existing.lastSeenTimestamp < timestamp) {
-                existing.lastSeenTimestamp = timestamp;
+            if (existing != null) {
+                // Обновляем только если новее
+                existing.lastSeenTimestamp = Math.max(existing.lastSeenTimestamp, timestamp);
+                existing.hasRetained = existing.hasRetained || retained;
+                if (lastMsgTimestamp > existing.getLastMessageTimestamp()) {
+                    existing.setLastMessage(lastMessageText);
+                    existing.setLastMessageTimestamp(lastMsgTimestamp);
+                }
                 AppDatabase.getInstance(app).allTopicsDao().update(existing);
+            } else {
+                AppDatabase.getInstance(app).allTopicsDao().insert(entity);
             }
         });
     }
 
     private AllTopicsEntity getTopicEntitySync(String topic) {
-        // Вспомогательный синхронный метод – вызывается только в executor
         List<AllTopicsEntity> list = AppDatabase.getInstance(app).allTopicsDao()
                 .getAllTopicsForServer(currentServerUrl).getValue();
         if (list != null) {
@@ -165,6 +199,15 @@ public class TopicRepository {
             }
         }
         return null;
+    }
+
+    public void updateTopicLastMessage(String topic, String payload, long timestamp) {
+        executor.execute(() -> {
+            String currentUrl = this.currentServerUrl;
+            if (currentUrl == null) return;
+            AppDatabase.getInstance(app).allTopicsDao()
+                    .updateLastMessage(topic, currentUrl, payload, timestamp);
+        });
     }
 
     public LiveData<List<AllTopicsEntity>> getAllTopicsLive() {
