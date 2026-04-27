@@ -2,6 +2,7 @@ package com.example.mqttclient;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.Button;
@@ -23,6 +24,8 @@ import com.example.mqttclient.Database.MessageEntity;
 import com.example.mqttclient.Accessory.TopicRepository;
 import com.example.mqttclient.Models.Topic;
 import com.example.mqttclient.ViewModels.TopicDetailViewModel;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.chip.Chip;
 
 import java.util.Date;
 
@@ -37,8 +40,8 @@ public class TopicDetailActivity extends AppCompatActivity {
     private TopicDetailViewModel viewModel;
 
     private TextView topicNameHeader;
-    private ImageButton btnBack;
-    private TextView statusValue;
+    private MaterialButton btnBack;
+    private Chip statusValue;
 //    private TextView clientValue;
     private TextView lastMessageTime;
     private RecyclerView messagesRecycler;
@@ -127,7 +130,7 @@ public class TopicDetailActivity extends AppCompatActivity {
             } else {
                 // Сообщений нет – сбрасываем статус
                 statusValue.setText("Неактивен");
-                statusValue.setTextColor(getColor(android.R.color.darker_gray));
+                statusValue.setBackgroundColor(getColor(android.R.color.darker_gray));
                 lastMessageTime.setText("Последнее сообщение: нет");
             }
         });
@@ -137,36 +140,34 @@ public class TopicDetailActivity extends AppCompatActivity {
         boolean active = (msg.retained == 0) &&
                 (System.currentTimeMillis() - msg.timestamp < 5 * 60 * 1000);
         statusValue.setText(active ? "Активен" : "Неактивен");
-        statusValue.setTextColor(active ?
-                getColor(android.R.color.holo_green_dark) :
-                getColor(android.R.color.darker_gray));
+        statusValue.setChipBackgroundColor(ColorStateList.valueOf(active ? getColor(android.R.color.holo_green_dark) : getColor(android.R.color.darker_gray)));
 
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.getDefault());
         lastMessageTime.setText("Последнее сообщение: " + sdf.format(new Date(msg.timestamp)));
     }
 
-    private void updateTopicInfo(Topic topic) {
-        boolean active = topic.isActive();
-        statusValue.setText(active ? "Активен" : "Неактивен");
-        statusValue.setTextColor(active ?
-                getColor(android.R.color.holo_green_dark) :
-                getColor(android.R.color.darker_gray));
-
+//    private void updateTopicInfo(Topic topic) {
+//        boolean active = topic.isActive();
+//        statusValue.setText(active ? "Активен" : "Неактивен");
+//        statusValue.setTextColor(active ?
+//                getColor(android.R.color.holo_green_dark) :
+//                getColor(android.R.color.darker_gray));
+//
 //        String cid = topic.getClientId();
 //        clientValue.setText(cid != null ? cid : "unknown");
-
-        if (topic.getLastMessageTime() != null) {
-            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.getDefault());
-            lastMessageTime.setText("Последнее сообщение: " + sdf.format(topic.getLastMessageTime()));
-        } else {
-            lastMessageTime.setText("Последнее сообщение: нет");
-        }
-    }
-
-    private void loadTopicInfo() {
-        viewModel.refreshTopicInfo();
-        viewModel.getMessagesLiveData();
-    }
+//
+//        if (topic.getLastMessageTime() != null) {
+//            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.getDefault());
+//            lastMessageTime.setText("Последнее сообщение: " + sdf.format(topic.getLastMessageTime()));
+//        } else {
+//            lastMessageTime.setText("Последнее сообщение: нет");
+//        }
+//    }
+//
+//    private void loadTopicInfo() {
+//        viewModel.refreshTopicInfo();
+//        viewModel.getMessagesLiveData();
+//    }
 
     private void setupPublishButton() {
         publishBtn.setOnClickListener(v -> {

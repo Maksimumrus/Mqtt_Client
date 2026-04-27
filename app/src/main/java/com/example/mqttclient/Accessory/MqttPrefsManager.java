@@ -62,7 +62,7 @@ public class MqttPrefsManager {
         }
     }
 
-    private static void saveServerList(Context context, List<String> list) {
+    public static void saveServerList(Context context, List<String> list) {
         String json = new Gson().toJson(list);
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
                 .putString("server_list", json).apply();

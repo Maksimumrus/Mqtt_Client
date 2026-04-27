@@ -3,9 +3,11 @@ package com.example.mqttclient.Adapters;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.mqttclient.R;
@@ -47,15 +49,18 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
 
     class MessageViewHolder extends RecyclerView.ViewHolder {
-        TextView messageTime, messageQos, messageRetained, messagePayload, messageClientId;
+        TextView messageTime, messagePayload;
+        ImageView qosIcon, retainedIcon;
 
         public MessageViewHolder(@NonNull View itemView) {
             super(itemView);
             messageTime = itemView.findViewById(R.id.message_time);
-            messageQos = itemView.findViewById(R.id.message_qos);
-            messageRetained = itemView.findViewById(R.id.message_retained);
+//            messageQos = itemView.findViewById(R.id.message_qos);
+//            messageRetained = itemView.findViewById(R.id.message_retained);
             messagePayload = itemView.findViewById(R.id.message_payload);
 //            messageClientId = itemView.findViewById(R.id.message_client_id);
+            qosIcon = itemView.findViewById(R.id.message_qos_icon);
+            retainedIcon = itemView.findViewById(R.id.message_retained_icon);
         }
 
         void bind(MessageEntity msg) {
@@ -66,14 +71,37 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 messageTime.setText("");
             }
 
-            messageQos.setText("QoS:" + msg.qos);
+            switch (msg.qos) {
+                case 0:
+                    qosIcon.setImageResource(R.drawable.ic_qos_0);
+                    qosIcon.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.gray_600));
+                    break;
+                case 1:
+                    qosIcon.setImageResource(R.drawable.ic_qos_1);
+                    qosIcon.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.blue_500));
+                    break;
+                case 2:
+                    qosIcon.setImageResource(R.drawable.ic_qos_2);
+                    qosIcon.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.purple_500));
+                    break;
+            }
 
             if (msg.retained > 0) {
-                messageRetained.setVisibility(View.VISIBLE);
-                messageRetained.setText("RET");
+                retainedIcon.setImageResource(R.drawable.ic_bookmark_filled);
+                retainedIcon.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.orange_500));
+                retainedIcon.setVisibility(View.VISIBLE);
             } else {
-                messageRetained.setVisibility(View.GONE);
+                retainedIcon.setImageResource(R.drawable.ic_bookmark_outline);
+                retainedIcon.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.gray_400));
+                retainedIcon.setVisibility(View.VISIBLE);
             }
+
+//            if (msg.retained > 0) {
+//                messageRetained.setVisibility(View.VISIBLE);
+//                messageRetained.setText("RET");
+//            } else {
+//                messageRetained.setVisibility(View.GONE);
+//            }
 
             String payload = msg.payload;
             if (payload != null && payload.length() > 500) {

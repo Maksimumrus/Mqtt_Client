@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="4dp"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    app:cardElevation="2dp">
+    app:cardCornerRadius="12dp"
+    app:cardElevation="1dp"
+    app:cardBackgroundColor="?attr/colorSurface">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,33 +17,42 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
             <TextView
                 android:id="@+id/message_time"
-                android:layout_height="wrap_content"
                 android:layout_width="0dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="12:34:56"
-                android:textSize="12sp"
-                android:textColor="#888888" />
+                android:textSize="18sp"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <ImageView
+                android:id="@+id/message_qos_icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_priority_high"
+                android:contentDescription="QoS"
+                android:layout_marginEnd="4dp"
+                app:tint="?attr/colorPrimary" />
 
             <TextView
                 android:id="@+id/message_qos"
-                android:layout_height="wrap_content"
                 android:layout_width="wrap_content"
-                android:text="QoS:1"
-                android:textSize="12sp"
-                android:textColor="#888888" />
+                android:layout_height="wrap_content"
+                android:text="1"
+                android:textSize="18sp"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
 
-            <TextView
-                android:id="@+id/message_retained"
-                android:layout_height="wrap_content"
-                android:layout_width="wrap_content"
+            <ImageView
+                android:id="@+id/message_retained_icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_bookmark_outline"
                 android:layout_marginStart="8dp"
-                android:text="R"
-                android:textSize="12sp"
-                android:textColor="#FF9800"
                 android:visibility="gone" />
         </LinearLayout>
 
@@ -51,16 +62,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="Текст сообщения"
-            android:textSize="14sp"
+            android:textSize="20sp"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
             android:fontFamily="monospace" />
-
-<!--        <TextView-->
-<!--            android:id="@+id/message_client_id"-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:layout_marginTop="4dp"-->
-<!--            android:text="ClientID: unknown"-->
-<!--            android:textSize="11sp"-->
-<!--            android:textColor="#999999" />-->
     </LinearLayout>
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>

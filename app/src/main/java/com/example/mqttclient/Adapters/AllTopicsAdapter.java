@@ -1,5 +1,6 @@
 package com.example.mqttclient.Adapters;
 
+import android.content.res.ColorStateList;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -7,9 +8,12 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.mqttclient.Database.AllTopicsEntity;
 import com.example.mqttclient.R;
+import com.google.android.material.button.MaterialButton;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -107,8 +111,8 @@ public class AllTopicsAdapter extends RecyclerView.Adapter<AllTopicsAdapter.View
 
     class ViewHolder extends RecyclerView.ViewHolder {
         TextView topicName, lastMessage, timestamp, status;
-        ImageButton btnAction;
-        ImageView ivRetainedIndicator;
+        MaterialButton btnAction;
+//        ImageView ivRetainedIndicator;
 
         ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -117,24 +121,32 @@ public class AllTopicsAdapter extends RecyclerView.Adapter<AllTopicsAdapter.View
             timestamp = itemView.findViewById(R.id.timestamp);
             status = itemView.findViewById(R.id.status);
             btnAction = itemView.findViewById(R.id.btn_action);
-            ivRetainedIndicator = itemView.findViewById(R.id.iv_retained_indicator);
+//            ivRetainedIndicator = itemView.findViewById(R.id.iv_retained_indicator);
         }
 
         void bind(AllTopicsEntity topic) {
             topicName.setText(topic.topicName);
-            lastMessage.setText("Последнее: " + dateFormat.format(topic.lastSeenTimestamp));
-            timestamp.setVisibility(View.GONE);
-            status.setVisibility(View.GONE);
+//            lastMessage.setText("Последнее: " + dateFormat.format(topic.lastSeenTimestamp));
+            timestamp.setText(dateFormat.format(topic.lastSeenTimestamp));
+            timestamp.setVisibility(View.VISIBLE);
 
-            if (topic.isHasRetained()) {
-                ivRetainedIndicator.setImageResource(R.drawable.ic_check);
-            } else {
-                ivRetainedIndicator.setImageResource(R.drawable.ic_temporary);
-            }
-            ivRetainedIndicator.setVisibility(View.VISIBLE);
+            status.setText(topic.isHasRetained() ? "Retained" : "Временный");
+            status.setVisibility(View.VISIBLE);
+
+            View statusIndicator = itemView.findViewById(R.id.status_indicator);
+            statusIndicator.setBackgroundResource(topic.isHasRetained() ? R.drawable.circle_green : R.drawable.circle_gray);
+
+//            if (topic.isHasRetained()) {
+//                ivRetainedIndicator.setImageResource(R.drawable.ic_check);
+//            } else {
+//                ivRetainedIndicator.setImageResource(R.drawable.ic_temporary);
+//            }
+//            ivRetainedIndicator.setVisibility(View.VISIBLE);
 
             boolean isSubscribed = subscribedTopics.contains(topic.topicName);
-            btnAction.setImageResource(isSubscribed ? android.R.drawable.checkbox_on_background : android.R.drawable.ic_input_add);
+            btnAction.setIconResource(isSubscribed ? android.R.drawable.checkbox_on_background : android.R.drawable.ic_input_add);
+            btnAction.setIconTint(ColorStateList.valueOf(ContextCompat.getColor(itemView.getContext(), R.color.black)));
+
             if (isSubscribed) {
                 btnAction.setOnClickListener(v -> {
                     if (listener != null) listener.onRemoveFromFavoritesClick(topic.topicName);
@@ -144,7 +156,6 @@ public class AllTopicsAdapter extends RecyclerView.Adapter<AllTopicsAdapter.View
                     if (listener != null) listener.onAddToFavoritesClick(topic.topicName);
                 });
             }
-
             itemView.setOnClickListener(v -> {
                 if (listener != null) listener.onTopicClick(topic.topicName);
             });

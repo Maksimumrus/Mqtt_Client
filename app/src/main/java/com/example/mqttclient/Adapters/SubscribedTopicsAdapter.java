@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.mqttclient.Models.Topic;
 import com.example.mqttclient.R;
+import com.google.android.material.button.MaterialButton;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -97,8 +98,8 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
         CardView cardView;
         TextView topicName, lastMessage, timestamp, status;
 //        TextView clientId;
-        ImageButton btnAction;
-        ImageView ivRetainedIndicator;
+        MaterialButton btnAction;
+//        ImageView ivRetainedIndicator;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -109,7 +110,7 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
             status = itemView.findViewById(R.id.status);
 //            clientId = itemView.findViewById(R.id.client_id);
             btnAction = itemView.findViewById(R.id.btn_action);
-            ivRetainedIndicator = itemView.findViewById(R.id.iv_retained_indicator);
+//            ivRetainedIndicator = itemView.findViewById(R.id.iv_retained_indicator);
         }
 
         void bind(Topic topic) {
@@ -117,6 +118,9 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
 
             String lastMsg = topic.getLastMessage();
             lastMessage.setText(lastMsg != null ? lastMsg : "нет сообщений");
+
+            View statusIndicator = itemView.findViewById(R.id.status_indicator);
+            statusIndicator.setBackgroundResource(topic.isActive() ? R.drawable.circle_green : R.drawable.circle_red);
 
             if (topic.getLastMessageTime() != null) {
                 String timeStr = new SimpleDateFormat("dd.MM HH:mm", Locale.getDefault())
@@ -126,21 +130,29 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
                 timestamp.setText("");
             }
 
-            boolean active = topic.isActive();
-            status.setText(active ? "● Активен" : "○ Неактивен");
-            status.setTextColor(active ? Color.GREEN : Color.GRAY);
+            boolean active = false;
+            if (topic.getLastMessageTime() != null && !topic.isHasRetained()) {
+                long diff = System.currentTimeMillis() - topic.getLastMessageTime().getTime();
+                active = diff < 5 * 60 * 1000; // 5 минут
+            }
+
+            statusIndicator.setBackgroundResource(active ? R.drawable.circle_green : R.drawable.circle_red);
+            status.setText(active ? "Активен" : "Неактивен");
+
+//            boolean active = topic.isActive();
+//            status.setTextColor(active ? Color.GREEN : Color.GRAY);
 
 //            String cid = topic.getClientId();
 //            clientId.setText("ID: " + (cid != null ? cid : "?"));
 
-            if (topic.isHasRetained()) {
-                ivRetainedIndicator.setImageResource(R.drawable.ic_check);
-            } else {
-                ivRetainedIndicator.setImageResource(R.drawable.ic_temporary);
-            }
-            ivRetainedIndicator.setVisibility(View.VISIBLE);
+//            if (topic.isHasRetained()) {
+//                ivRetainedIndicator.setImageResource(R.drawable.ic_check);
+//            } else {
+//                ivRetainedIndicator.setImageResource(R.drawable.ic_temporary);
+//            }
+//            ivRetainedIndicator.setVisibility(View.VISIBLE);
 
-            btnAction.setImageResource(android.R.drawable.ic_menu_delete);
+            btnAction.setIconResource(android.R.drawable.ic_menu_delete);
             btnAction.setOnClickListener(v -> {
                 if (listener != null) listener.onUnsubscribeClick(topic);
             });
@@ -149,9 +161,9 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
                 if (listener != null) listener.onTopicClick(topic);
             });
 
-            // Цвет карточки в зависимости от активности
-            int bgColor = active ? 0x2200AA00 : 0xFFFFFF;
-            cardView.setCardBackgroundColor(bgColor);
+//            // Цвет карточки в зависимости от активности
+//            int bgColor = active ? 0x2200AA00 : 0xFFFFFF;
+//            cardView.setCardBackgroundColor(bgColor);
         }
     }
 }

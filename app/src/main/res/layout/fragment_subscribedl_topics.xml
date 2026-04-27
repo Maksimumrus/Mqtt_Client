@@ -1,81 +1,149 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="8dp"
+    android:background="?attr/colorSurface">
 
-    <LinearLayout
+
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
-        <TextView
-            android:layout_height="wrap_content"
-            android:layout_width="wrap_content"
-            android:text="Сервер: " />
-        <Spinner
-            android:id="@+id/spinner_server"
-            android:layout_height="wrap_content"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:minHeight="48dp"/>
-        <Button
-            android:id="@+id/btn_change_server"
-            android:layout_height="wrap_content"
-            android:layout_width="wrap_content"
-            android:text="Изменить" />
-        <Button
-            android:id="@+id/btn_reconnect"
-            android:layout_height="wrap_content"
-            android:layout_width="wrap_content"
-            android:text="↻" />
-    </LinearLayout>
+        app:cardCornerRadius="8dp"
+        app:cardElevation="2dp"
+        android:layout_marginBottom="8dp">
 
-    <TextView
-        android:id="@+id/connection_status"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Сервер: "
+                android:layout_gravity="center_vertical"/>
+
+            <AutoCompleteTextView
+                android:id="@+id/spinner_server"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:padding="8dp"
+                android:background="@drawable/spinner_background"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:inputType="none"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:cursorVisible="false" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_change_server"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                app:icon="@android:drawable/ic_input_add"
+                android:contentDescription="Применить сервер" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_reconnect"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                app:icon="@drawable/ic_refresh"
+                android:contentDescription="Переподключиться" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Статус подключения с индикатором -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/connection_status_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="8dp"
-        android:text="Статус: отключено"
-        android:textAlignment="center"
-        android:background="#FFE0B2"
-        android:textColor="@color/black"
-        android:visibility="visible" />
+        android:layout_marginBottom="8dp"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="#FFE0B2">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp"
+            android:gravity="center_vertical">
+
+            <View
+                android:id="@+id/led_indicator"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="@drawable/circle_gray"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/connection_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Статус: отключено"
+                android:textColor="@android:color/black" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Поиск -->
-    <SearchView
-        android:id="@+id/search_view"
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:queryHint="Поиск топика или сообщения" />
+        android:layout_marginBottom="8dp"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="0dp">
 
-    <!-- Фильтр по статусу -->
-    <RadioGroup
-        android:id="@+id/radio_status"
+        <SearchView
+            android:id="@+id/search_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:queryHint="Поиск топика или сообщения"
+            android:iconifiedByDefault="false"
+            android:focusable="true"
+            android:focusableInTouchMode="true" />
+    </androidx.cardview.widget.CardView>
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/chip_status_filter"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
-        <RadioButton
-            android:id="@+id/radio_all"
-            android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        app:singleSelection="true"
+        app:selectionRequired="true">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_all"
+            style="@style/Widget.Material3.Chip.Filter"
             android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:text="Все"
             android:checked="true" />
-        <RadioButton
-            android:id="@+id/radio_active"
-            android:layout_height="wrap_content"
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_active"
+            style="@style/Widget.Material3.Chip.Filter"
             android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:text="Активные" />
-        <RadioButton
-            android:id="@+id/radio_inactive"
-            android:layout_height="wrap_content"
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_inactive"
+            style="@style/Widget.Material3.Chip.Filter"
             android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:text="Неактивные" />
-    </RadioGroup>
+    </com.google.android.material.chip.ChipGroup>
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical" >
+        android:layout_height="match_parent">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_view"
@@ -88,7 +156,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
             android:layout_margin="16dp"
-            android:src="@android:drawable/ic_input_add" />
-
+            android:src="@android:drawable/ic_input_add"
+            app:backgroundTint="?attr/colorPrimary" />
     </FrameLayout>
 </LinearLayout>

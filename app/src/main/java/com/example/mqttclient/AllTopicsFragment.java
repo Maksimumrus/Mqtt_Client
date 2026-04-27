@@ -1,11 +1,13 @@
 package com.example.mqttclient;
 
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -31,6 +33,7 @@ import com.example.mqttclient.Database.AllTopicsEntity;
 import com.example.mqttclient.Accessory.TopicRepository;
 import com.example.mqttclient.ViewModels.AllTopicsViewModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.progressindicator.CircularProgressIndicator;
 
 import java.util.List;
 import java.util.Set;
@@ -40,10 +43,10 @@ public class AllTopicsFragment extends Fragment implements MainActivity.MqttServ
 
     private RecyclerView recyclerView;
     protected SearchView searchView;
-    protected Spinner serverSpinner;
+    protected AutoCompleteTextView serverSpinner;
     protected Button btnChangeServer;
     protected Button btnReconnect;
-    private ProgressBar progressBar;
+    private CircularProgressIndicator progressBar;
     private FloatingActionButton fabClear;
 
     private AllTopicsAdapter adapter;
@@ -75,29 +78,6 @@ public class AllTopicsFragment extends Fragment implements MainActivity.MqttServ
             else {
                 UiUtils.showToast(getContext(), "Сервис не готов");
             }
-        });
-
-        serverSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> adapterView, View view, int position, long id) {
-                String selected = serverList.get(position);
-                String current = MqttPrefsManager.getBrokerUrl(getContext());
-                if (!selected.equals(current)) {
-                    MqttPrefsManager.saveBrokerUrl(getContext(), selected);
-
-                    TopicRepository repo = TopicRepository.getInstance(requireActivity().getApplication());
-                    repo.setCurrentServerUrl(selected);
-
-                    if (mqttService != null) {
-                        mqttService.changeBrokerUrl(selected);
-                    }
-                    viewModel.setServerUrl(selected);
-                    refreshList();
-                }
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> adapterView) { }
         });
 
         adapter = new AllTopicsAdapter();
@@ -168,11 +148,12 @@ public class AllTopicsFragment extends Fragment implements MainActivity.MqttServ
             if (getActivity() == null) return;
             getActivity().runOnUiThread(() -> {
                 TextView statusView = getView().findViewById(R.id.connection_status);
+                View ledIndicator = getView().findViewById(R.id.led_indicator);
                 if (statusView != null) {
-                    statusView.setText("Статус: " + status);
-                    statusView.setBackgroundColor(isConnected ?
-                            getResources().getColor(android.R.color.holo_green_light) :
-                            getResources().getColor(android.R.color.holo_orange_light));
+                    statusView.setText(status);
+                }
+                if (ledIndicator != null) {
+                    ledIndicator.setBackgroundResource(isConnected ? R.drawable.circle_green : R.drawable.circle_red);
                 }
             });
         });
@@ -211,11 +192,30 @@ public class AllTopicsFragment extends Fragment implements MainActivity.MqttServ
     protected void loadServerSpinner() {
         serverList = MqttPrefsManager.getServerList(getContext());
         String current = MqttPrefsManager.getBrokerUrl(getContext());
-        serverAdapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_item, serverList);
-        serverAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        serverSpinner.setAdapter(serverAdapter);
-        int pos = serverList.indexOf(current);
-        if (pos >= 0) serverSpinner.setSelection(pos);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_dropdown_item_1line, serverList);
+        serverSpinner.setAdapter(adapter);
+        serverSpinner.setText(current, false);
+        serverSpinner.setThreshold(1);
+        serverSpinner.setOnClickListener(v -> serverSpinner.showDropDown());
+        serverSpinner.setOnItemClickListener((parent, view, position, id) -> {
+            String selected = serverList.get(position);
+            String currentUrl = MqttPrefsManager.getBrokerUrl(getContext());
+            if (!selected.equals(currentUrl)) {
+                MqttPrefsManager.saveBrokerUrl(getContext(), selected);
+                TopicRepository repo = TopicRepository.getInstance(requireActivity().getApplication());
+                repo.setCurrentServerUrl(selected);
+                if (mqttService != null) {
+                    mqttService.changeBrokerUrl(selected);
+                }
+                viewModel.setServerUrl(selected);
+                refreshList();
+            }
+        });
+
+        serverSpinner.setOnLongClickListener(v -> {
+            showServerManagerDialog();
+            return true;
+        });
     }
 
     protected void showAddServerDialog() {
@@ -246,6 +246,46 @@ public class AllTopicsFragment extends Fragment implements MainActivity.MqttServ
                 loadServerSpinner();
                 serverSpinner.setSelection(serverList.size() - 1);
             }
+        });
+        builder.setNegativeButton("Отмена", null);
+        builder.show();
+    }
+
+    private void showServerManagerDialog() {
+        List<String> servers = MqttPrefsManager.getServerList(getContext());
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, servers);
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle("Управление серверами");
+        builder.setAdapter(adapter, (dialog, which) -> {
+            // Редактирование или удаление
+            String selected = servers.get(which);
+            showEditServerDialog(selected, which);
+        });
+        builder.setPositiveButton("Добавить", (d, w) -> showAddServerDialog());
+        builder.setNegativeButton("Закрыть", null);
+        builder.show();
+    }
+
+    private void showEditServerDialog(String server, int position) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle("Редактировать сервер");
+        final EditText input = new EditText(getContext());
+        input.setText(server);
+        builder.setView(input);
+        builder.setPositiveButton("Сохранить", (d, w) -> {
+            String newServer = input.getText().toString().trim();
+            if (!newServer.isEmpty()) {
+                List<String> servers = MqttPrefsManager.getServerList(getContext());
+                servers.set(position, newServer);
+                MqttPrefsManager.saveServerList(getContext(), servers);
+                loadServerSpinner();
+            }
+        });
+        builder.setNeutralButton("Удалить", (d, w) -> {
+            List<String> servers = MqttPrefsManager.getServerList(getContext());
+            servers.remove(position);
+            MqttPrefsManager.saveServerList(getContext(), servers);
+            loadServerSpinner();
         });
         builder.setNegativeButton("Отмена", null);
         builder.show();

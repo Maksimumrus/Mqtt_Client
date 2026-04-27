@@ -51,8 +51,10 @@ public class AllTopicsViewModel extends AndroidViewModel {
     public void cleanTemporaryTopics(long olderThanMillis) {
         executor.execute(() -> {
             long threshold = System.currentTimeMillis() - olderThanMillis;
-            // Удаляем топики, у которых hasRetained == 0 и lastSeenTimestamp < threshold
-            AppDatabase.getInstance(app).allTopicsDao().deleteTemporaryTopics(String.valueOf(currentServerUrl), threshold);
+            String serverUrl = currentServerUrl.getValue(); // получить реальное значение
+            if (serverUrl != null) {
+                AppDatabase.getInstance(app).allTopicsDao().deleteTemporaryTopics(serverUrl, threshold);
+            }
         });
     }
 }
