@@ -90,42 +90,4 @@
         android:paddingHorizontal="8dp"
         android:clipToPadding="false"
         app:reverseLayout="true" />
-
-    <!-- Панель публикации -->
-    <com.google.android.material.card.MaterialCardView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:cardCornerRadius="0dp"
-        app:cardElevation="8dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="8dp">
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                app:endIconMode="clear_text">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/publish_input"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="Сообщение для публикации..."
-                    android:maxLines="5" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/publish_btn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Отправить"
-                android:layout_marginStart="8dp"
-                style="@style/Widget.Material3.Button" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
 </LinearLayout>

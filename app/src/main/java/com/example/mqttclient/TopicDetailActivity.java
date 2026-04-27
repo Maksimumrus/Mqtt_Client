@@ -42,11 +42,8 @@ public class TopicDetailActivity extends AppCompatActivity {
     private TextView topicNameHeader;
     private MaterialButton btnBack;
     private Chip statusValue;
-//    private TextView clientValue;
     private TextView lastMessageTime;
     private RecyclerView messagesRecycler;
-    private EditText publishInput;
-    private Button publishBtn;
 
     public static void start(Context context, String topicName) {
         Intent intent = new Intent(context, TopicDetailActivity.class);
@@ -94,8 +91,7 @@ public class TopicDetailActivity extends AppCompatActivity {
 
         initViews();
         setupRecyclerView();
-        observeData();          // данные придут из LiveData автоматически
-        setupPublishButton();
+        observeData();
     }
 
     private void initViews() {
@@ -105,8 +101,6 @@ public class TopicDetailActivity extends AppCompatActivity {
 //        clientValue = findViewById(R.id.client_value);
         lastMessageTime = findViewById(R.id.last_message_time);
         messagesRecycler = findViewById(R.id.messages_recycler);
-        publishInput = findViewById(R.id.publish_input);
-        publishBtn = findViewById(R.id.publish_btn);
 
         topicNameHeader.setText(topicName);
         btnBack.setOnClickListener(v -> finish());
@@ -168,38 +162,4 @@ public class TopicDetailActivity extends AppCompatActivity {
 //        viewModel.refreshTopicInfo();
 //        viewModel.getMessagesLiveData();
 //    }
-
-    private void setupPublishButton() {
-        publishBtn.setOnClickListener(v -> {
-            String payload = publishInput.getText().toString().trim();
-            if (TextUtils.isEmpty(payload)) {
-                Toast.makeText(this, "Введите сообщение", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (mqttService != null) {
-                mqttService.publish(topicName, payload);
-                publishInput.setText("");
-                Toast.makeText(this, "Опубликовано", Toast.LENGTH_SHORT).show();
-                // После публикации можно обновить историю: новое сообщение придёт через MQTT,
-                // но можно добавить его сразу в БД для отзывчивости
-                addLocalMessage(payload);
-            } else {
-                Toast.makeText(this, "MQTT сервис не доступен", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void addLocalMessage(String payload) {
-        // Опционально: сразу сохранить отправленное сообщение в БД,
-        // чтобы оно отобразилось мгновенно, даже до получения от брокера
-        MessageEntity entity = new MessageEntity();
-        entity.topic = topicName;
-        entity.payload = payload;
-        entity.timestamp = System.currentTimeMillis();
-        entity.qos = 1;
-        entity.retained = 0;
-        entity.clientId = "this_app";
-        AppDatabase.getInstance(this).messageDao().insert(entity);
-        viewModel.getMessagesLiveData(); // перезагрузить список
-    }
 }
