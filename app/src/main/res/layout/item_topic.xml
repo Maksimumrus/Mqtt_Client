@@ -61,11 +61,11 @@
                 android:padding="8dp"
                 android:layout_marginStart="4dp" />
 
-            <ImageView
-                android:id="@+id/iv_retained"
+            <View
+                android:id="@+id/retained"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@drawable/ic_bookmark_outline"
+                android:background="@drawable/ic_circle"
                 android:contentDescription="Retained"
                 android:layout_marginStart="4dp"
                 android:layout_marginEnd="0dp" />

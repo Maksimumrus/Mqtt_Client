@@ -116,7 +116,7 @@ public class AllTopicsAdapter extends RecyclerView.Adapter<AllTopicsAdapter.View
         TextView topicName;
         TextView lastMessageCompact, lastMessageExpanded;
         TextView timestamp, statusText;
-        ImageView ivRetained;
+        View retained;
         View expandedContent;
 
         ViewHolder(@NonNull View itemView) {
@@ -128,7 +128,7 @@ public class AllTopicsAdapter extends RecyclerView.Adapter<AllTopicsAdapter.View
             timestamp = itemView.findViewById(R.id.timestamp);
             statusText = itemView.findViewById(R.id.status);
             btnAction = itemView.findViewById(R.id.btn_action);
-            ivRetained = itemView.findViewById(R.id.iv_retained);
+            retained = itemView.findViewById(R.id.retained);
             expandedContent = itemView.findViewById(R.id.expanded_content);
         }
 
@@ -143,13 +143,7 @@ public class AllTopicsAdapter extends RecyclerView.Adapter<AllTopicsAdapter.View
             long time = topic.getLastMessageTimestamp() > 0 ? topic.getLastMessageTimestamp() : topic.lastSeenTimestamp;
             timestamp.setText(dateFormat.format(time));
 
-            if (topic.isHasRetained()) {
-                ivRetained.setImageResource(R.drawable.ic_bookmark_filled);
-                ivRetained.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.orange_500));
-            } else {
-                ivRetained.setImageResource(R.drawable.ic_bookmark_outline);
-                ivRetained.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.gray_400));
-            }
+            retained.setBackgroundResource(topic.isHasRetained() ? R.drawable.circle_green : R.drawable.ic_circle);
 
             boolean isSubscribed = subscribedTopics.contains(topic.topicName);
             btnAction.setImageResource(isSubscribed ? R.drawable.ic_check : R.drawable.ic_add);

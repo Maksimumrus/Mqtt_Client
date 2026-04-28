@@ -102,7 +102,7 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
         TextView topicName;
         TextView lastMessageCompact, lastMessageExpanded;
         TextView timestamp, statusText;
-        ImageView ivRetained;
+        View retained;
         View expandedContent;
 
         public ViewHolder(@NonNull View itemView) {
@@ -114,7 +114,7 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
             timestamp = itemView.findViewById(R.id.timestamp);
             statusText = itemView.findViewById(R.id.status);
             btnAction = itemView.findViewById(R.id.btn_action);
-            ivRetained = itemView.findViewById(R.id.iv_retained);
+            retained = itemView.findViewById(R.id.retained);
             expandedContent = itemView.findViewById(R.id.expanded_content);
         }
 
@@ -134,14 +134,7 @@ public class SubscribedTopicsAdapter extends RecyclerView.Adapter<SubscribedTopi
                 timestamp.setText("");
             }
 
-            // Retained иконка
-            if (topic.isHasRetained()) {
-                ivRetained.setImageResource(R.drawable.ic_bookmark_filled);
-                ivRetained.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.orange_500));
-            } else {
-                ivRetained.setImageResource(R.drawable.ic_bookmark_outline);
-                ivRetained.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.gray_400));
-            }
+            retained.setBackgroundResource(topic.isHasRetained() ? R.drawable.circle_green : R.drawable.ic_circle);
 
             boolean active = topic.isActive();
             statusText.setText(active ? "Активен" : "Неактивен");
