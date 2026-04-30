@@ -33,9 +33,8 @@ public class SubscribedTopicsAdapter extends BaseTopicsAdapter<SubscribedTopicsA
     public void setData(List<Topic> topics) {
         if (topics == null) topics = new ArrayList<>();
         originalRoots = TopicTreeBuilder.buildTree(topics, false);
+        if (originalRoots == null) originalRoots = new ArrayList<>();
         autoExpandGroups(originalRoots);
-        expandedLeaves.clear();
-        addAllLeaves(originalRoots);
         super.setTreeRoots(originalRoots);
     }
 
@@ -45,7 +44,20 @@ public class SubscribedTopicsAdapter extends BaseTopicsAdapter<SubscribedTopicsA
         applyFilters();
     }
 
+    public void initExpandedLeaves(Set<String> leaves) {
+        expandedLeaves.clear();
+        if (leaves.isEmpty()) {
+            if (originalRoots != null) {
+                addAllLeaves(originalRoots);
+            }
+        } else {
+            expandedLeaves.addAll(leaves);
+        }
+        rebuildFlatList();
+    }
+
     private void addAllLeaves(List<TopicTreeNode> nodes) {
+        if (nodes == null) return;
         for (TopicTreeNode node : nodes) {
             if (node.type == TopicTreeNode.Type.LEAF) {
                 expandedLeaves.add(node.fullPath + "_leaf");

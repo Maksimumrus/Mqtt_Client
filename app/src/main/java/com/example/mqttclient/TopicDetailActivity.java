@@ -30,6 +30,7 @@ import com.google.android.material.chip.Chip;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Date;
+import java.util.List;
 
 public class TopicDetailActivity extends AppCompatActivity {
 
@@ -200,10 +201,30 @@ public class TopicDetailActivity extends AppCompatActivity {
 //        viewModel.getMessagesLiveData();
 //    }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshStatus();
+    }
+
     private void updateSubscriptionButton() {
         boolean isSubscribed = repository.getSubscribedTopicsSet().contains(topicName);
         btnAdd.setText(isSubscribed ? "Отписаться" : "Подписаться");
         btnAdd.setIcon(isSubscribed ?
                 getDrawable(R.drawable.ic_check) : getDrawable(R.drawable.ic_add));
+    }
+
+    private void refreshStatus() {
+        repository.getLastMessageForTopicAsync(topicName, last -> {
+            runOnUiThread(() -> {
+                if (last != null && !last.isEmpty()) {
+                    updateTopicInfoFromMessage(last.get(0));
+                } else {
+                    statusValue.setText("Неактивен");
+                    statusValue.setChipBackgroundColor(ColorStateList.valueOf(getColor(android.R.color.darker_gray)));
+                    lastMessageTime.setText("Последнее сообщение: нет");
+                }
+            });
+        });
     }
 }

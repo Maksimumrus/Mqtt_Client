@@ -113,7 +113,6 @@ public class SubscribedTopicsFragment extends BaseTopicsFragment {
         chipStatusFilter.check(R.id.chip_all);
 
         fabAddTopics.setOnClickListener(v -> showAddTopicDialog());
-        loadExpandedState();
 
         return view;
     }
@@ -123,6 +122,7 @@ public class SubscribedTopicsFragment extends BaseTopicsFragment {
         Set<String> groups = prefs.getStringSet("expanded_groups", new HashSet<>());
         Set<String> leaves = prefs.getStringSet("expanded_leaves", new HashSet<>());
         adapter.saveExpandedState(groups, leaves);
+        adapter.initExpandedLeaves(leaves);
     }
 
     private void saveExpandedState() {

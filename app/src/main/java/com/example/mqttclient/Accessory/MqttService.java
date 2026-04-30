@@ -186,9 +186,9 @@ public class MqttService extends Service {
                 Set<String> topics = MqttPrefsManager.getSubscribedTopicsSet(MqttService.this, brokerUrl);
                 isConnected = true;
                 client.subscribeWith().topicFilter("#").callback(this::handleMessage).send();
-                for (String topic : topics) {
-                    subscribe(topic);
-                }
+//                for (String topic : topics) {
+//                    subscribe(topic);
+//                }
             }
         });
     }
@@ -239,30 +239,84 @@ public class MqttService extends Service {
         }
     }
 
+    public void subscribe(String topic) {
+        if (topic == null || topic.trim().isEmpty()) return;
+
+        topic = topic.trim();
+        // Проверка валидности wildcard
+        if (topic.contains("#") && !topic.endsWith("#")) {
+            Log.e(TAG, "Invalid topic filter (misplaced #): " + topic);
+            UiUtils.showError(this, "Неверный топик: # должен быть в конце");
+            return;
+        }
+        if (topic.contains("+")) {
+            // Проверка, что + не внутри сегмента
+            String[] segments = topic.split("/");
+            for (String seg : segments) {
+                if (seg.contains("+") && seg.length() > 1) {
+                    Log.e(TAG, "Invalid topic filter (misplaced +): " + topic);
+                    UiUtils.showError(this, "Неверный топик: + должен быть отдельным сегментом");
+                    return;
+                }
+            }
+        }
+
+//        if (client != null) {
+//            String finalTopic = topic;
+//            client.subscribeWith()
+//                    .topicFilter(topic)
+//                    .callback(this::handleMessage)
+//                    .send()
+//                    .whenComplete((subAck, throwable) -> {
+//                        if (throwable != null) Log.e(TAG, "Subscribe failed", throwable);
+//                        else Log.d(TAG, "Subscribed to " + finalTopic);
+//                    });
+//        }
+        MqttPrefsManager.addSubscribedTopic(this, brokerUrl, topic);
+    }
+
+    public void unsubscribe(String topic) {
+//        if (client != null) {
+//            client.unsubscribeWith()
+//                    .topicFilter(topic)
+//                    .send()
+//                    .whenComplete((unsubAck, throwable) -> {
+//                        if (throwable != null) Log.e(TAG, "Unsubscribe failed", throwable);
+//                        else Log.d(TAG, "Unsubscribed from " + topic);
+//                    });
+//        }
+        MqttPrefsManager.removeSubscribedTopic(this, brokerUrl, topic);
+    }
+
     private void handleMessage(Mqtt3Publish publish) {
         String topic = publish.getTopic().toString();
         String payload = new String(publish.getPayloadAsBytes(), StandardCharsets.UTF_8);
         long timestamp = System.currentTimeMillis();
         boolean retained = publish.isRetain();
 
+//        Set<String> subscribed = MqttPrefsManager.getSubscribedTopicsSet(this, brokerUrl);
+//        if (!subscribed.contains(topic)) {
+//            return;
+//        }
+
         if (messageListener != null) {
             messageListener.onTopicDiscovered(topic, timestamp, retained);
         }
 
-        List<MessageEntity> last = AppDatabase.getInstance(this).messageDao()
-                .getLastMessages(topic, brokerUrl, 1);
-        if (!last.isEmpty()) {
-            MessageEntity lastMsg = last.get(0);
-            if (lastMsg.payload.equals(payload)) {
-                if (retained) {
-                    return;
-                } else {
-                    if (Math.abs(timestamp - lastMsg.timestamp) < 2000) {
-                        return;
-                    }
-                }
-            }
-        }
+//        List<MessageEntity> last = AppDatabase.getInstance(this).messageDao()
+//                .getLastMessages(topic, brokerUrl, 1);
+//        if (!last.isEmpty()) {
+//            MessageEntity lastMsg = last.get(0);
+//            if (lastMsg.payload.equals(payload)) {
+//                if (retained) {
+//                    return;
+//                } else {
+//                    if (Math.abs(timestamp - lastMsg.timestamp) < 2000) {
+//                        return;
+//                    }
+//                }
+//            }
+//        }
 
         if (retained) {
             // Проверяем, не дубликат ли уже сохранённого retained
@@ -345,55 +399,6 @@ public class MqttService extends Service {
 //            showNotification(topic, payload);
 //        }
 //    }
-
-    public void subscribe(String topic) {
-        if (topic == null || topic.trim().isEmpty()) return;
-
-        topic = topic.trim();
-        // Проверка валидности wildcard
-        if (topic.contains("#") && !topic.endsWith("#")) {
-            Log.e(TAG, "Invalid topic filter (misplaced #): " + topic);
-            UiUtils.showError(this, "Неверный топик: # должен быть в конце");
-            return;
-        }
-        if (topic.contains("+")) {
-            // Проверка, что + не внутри сегмента
-            String[] segments = topic.split("/");
-            for (String seg : segments) {
-                if (seg.contains("+") && seg.length() > 1) {
-                    Log.e(TAG, "Invalid topic filter (misplaced +): " + topic);
-                    UiUtils.showError(this, "Неверный топик: + должен быть отдельным сегментом");
-                    return;
-                }
-            }
-        }
-
-        if (client != null) {
-            String finalTopic = topic;
-            client.subscribeWith()
-                    .topicFilter(topic)
-                    .callback(this::handleMessage)
-                    .send()
-                    .whenComplete((subAck, throwable) -> {
-                        if (throwable != null) Log.e(TAG, "Subscribe failed", throwable);
-                        else Log.d(TAG, "Subscribed to " + finalTopic);
-                    });
-        }
-        MqttPrefsManager.addSubscribedTopic(this, brokerUrl, topic);
-    }
-
-    public void unsubscribe(String topic) {
-        if (client != null) {
-            client.unsubscribeWith()
-                    .topicFilter(topic)
-                    .send()
-                    .whenComplete((unsubAck, throwable) -> {
-                        if (throwable != null) Log.e(TAG, "Unsubscribe failed", throwable);
-                        else Log.d(TAG, "Unsubscribed from " + topic);
-                    });
-        }
-        MqttPrefsManager.removeSubscribedTopic(this, brokerUrl, topic);
-    }
 
     @Override
     public IBinder onBind(Intent intent) { return binder; }

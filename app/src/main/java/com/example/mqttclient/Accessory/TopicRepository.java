@@ -260,6 +260,13 @@ public class TopicRepository {
                 .getLastMessages(topic, currentServerUrl, 1);
     }
 
+    public void getLastMessageForTopicAsync(String topic, java.util.function.Consumer<List<MessageEntity>> callback) {
+        executor.execute(() -> {
+            List<MessageEntity> result = getLastMessageForTopic(topic);
+            if (callback != null) callback.accept(result);
+        });
+    }
+
     public void clearTopicHistory(String topic) {
         AppDatabase.getInstance(app).messageDao().clearTopicHistory(topic, currentServerUrl);
     }
