@@ -3,8 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="?attr/colorSurface">
+    android:orientation="vertical">
 
     <!-- Карточка с информацией о топике -->
     <com.google.android.material.card.MaterialCardView
@@ -12,7 +11,8 @@
         android:layout_height="wrap_content"
         android:layout_margin="8dp"
         app:cardCornerRadius="16dp"
-        app:cardElevation="4dp">
+        app:cardElevation="4dp"
+        app:cardBackgroundColor="?attr/colorSurface">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -32,7 +32,7 @@
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     app:icon="@android:drawable/ic_menu_revert"
-                    app:iconTint="?attr/colorOnSurface"
+                    app:iconTint="?attr/colorPrimary"
                     android:background="?attr/selectableItemBackgroundBorderless" />
 
                 <TextView
@@ -43,6 +43,22 @@
                     android:text="Название топика"
                     android:textAppearance="?attr/textAppearanceHeadlineSmall"
                     android:textColor="?attr/colorOnSurface" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_add_server"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    app:icon="@android:drawable/ic_input_add"
+                    android:contentDescription="Применить сервер" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_clear"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    app:icon="@android:drawable/ic_menu_delete"
+                    android:contentDescription="Очистить сервер" />
             </LinearLayout>
 
             <LinearLayout
@@ -58,6 +74,7 @@
                     android:layout_height="wrap_content"
                     android:text="Статус: "
                     android:textSize="16sp"
+                    android:textColor="?attr/colorOnSurface"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                 <com.google.android.material.chip.Chip
@@ -66,6 +83,7 @@
                     android:layout_height="wrap_content"
                     android:text="Активен"
                     android:textSize="16sp"
+                    android:textColor="@color/white"
                     app:chipIcon="@drawable/ic_circle" />
             </LinearLayout>
 
@@ -77,7 +95,7 @@
                 android:text="Последнее сообщение: --:--"
                 android:textSize="16sp"
                 android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                android:textColor="?attr/colorOnSurface" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

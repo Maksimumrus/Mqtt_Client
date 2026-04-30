@@ -1,5 +1,7 @@
 package com.example.mqttclient;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -8,26 +10,27 @@ import android.widget.SearchView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.mqttclient.Accessory.MqttService;
+import com.example.mqttclient.Accessory.TopicRepository;
 import com.example.mqttclient.Accessory.UiUtils;
 import com.example.mqttclient.Adapters.AllTopicsAdapter;
-import com.example.mqttclient.Accessory.TopicRepository;
+import com.example.mqttclient.Adapters.BaseTopicsAdapter;
+import com.example.mqttclient.Database.AllTopicsEntity;
+import com.example.mqttclient.Models.TopicTreeNode;
 import com.example.mqttclient.ViewModels.AllTopicsViewModel;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 
+import java.util.HashSet;
 import java.util.Set;
 
 public class AllTopicsFragment extends BaseTopicsFragment {
     private RecyclerView recyclerView;
     private SearchView searchView;
     private CircularProgressIndicator progressBar;
-    private FloatingActionButton fabClear;
     private AllTopicsAdapter adapter;
     private AllTopicsViewModel viewModel;
     private Set<String> currentSubscriptions;
@@ -45,43 +48,42 @@ public class AllTopicsFragment extends BaseTopicsFragment {
         recyclerView = view.findViewById(R.id.recycler_view);
         searchView = view.findViewById(R.id.search_view);
         progressBar = view.findViewById(R.id.progress_bar);
-        fabClear = view.findViewById(R.id.fab_clear);
 
-        adapter = new AllTopicsAdapter();
+        adapter = new AllTopicsAdapter(currentSubscriptions);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter(adapter);
 
         viewModel = new ViewModelProvider(this).get(AllTopicsViewModel.class);
-        viewModel.getAllTopics().observe(getViewLifecycleOwner(), topics -> {
+        viewModel.getAllTopicsTree().observe(getViewLifecycleOwner(), roots -> {
             progressBar.setVisibility(View.GONE);
-            adapter.setTopics(topics);
+            adapter.setTreeRoots(roots);
+            loadExpandedState();
         });
 
-        adapter.setListener(new AllTopicsAdapter.OnTopicActionListener() {
+        adapter.setListener(new BaseTopicsAdapter.OnTreeNodeClickListener() {
             @Override
-            public void onTopicClick(String topicName) {
-                TopicDetailActivity.start(getContext(), topicName);
+            public void onLeafClick(TopicTreeNode node, Object data) {
+                AllTopicsEntity entity = (AllTopicsEntity) data;
+                TopicDetailActivity.start(getContext(), entity.topicName);
             }
-
             @Override
-            public void onAddToFavoritesClick(String topicName) {
-                if (mqttService != null) {
-                    mqttService.subscribe(topicName);
-                }
-                viewModel.addToFavorites(topicName);
-                adapter.updateSubscriptionStatus(topicName, true);
-                UiUtils.showToast(getContext(), "Добавлено в избранное: " + topicName);
+            public void onGroupClick(TopicTreeNode node) {
+                saveExpandedState();
             }
-
             @Override
-            public void onRemoveFromFavoritesClick(String topicName) {
-                // отписываемся
-                if (mqttService != null) {
-                    mqttService.unsubscribe(topicName);
+            public void onActionClick(TopicTreeNode node, Object data) {
+                AllTopicsEntity entity = (AllTopicsEntity) data;
+                boolean isSubscribed = currentSubscriptions.contains(entity.topicName);
+                if (isSubscribed) {
+                    if (mqttService != null) mqttService.unsubscribe(entity.topicName);
+                    viewModel.removeFromFavorites(entity.topicName);
+                    UiUtils.showToast(getContext(), "Удалено из избранного: " + entity.topicName);
+                } else {
+                    if (mqttService != null) mqttService.subscribe(entity.topicName);
+                    viewModel.addToFavorites(entity.topicName);
+                    UiUtils.showToast(getContext(), "Добавлено в избранное: " + entity.topicName);
                 }
-                viewModel.removeFromFavorites(topicName);
-                adapter.updateSubscriptionStatus(topicName, false);
-                UiUtils.showToast(getContext(), "Удалено из избранного: " + topicName);
+                refreshSubscriptions();
             }
         });
 
@@ -90,18 +92,22 @@ public class AllTopicsFragment extends BaseTopicsFragment {
             @Override public boolean onQueryTextChange(String newText) { applyFilters(); return true; }
         });
 
-        fabClear.setOnClickListener(v -> {
-            new AlertDialog.Builder(getContext())
-                    .setTitle("Удалить временные топики")
-                    .setMessage("Удалить все топики без retained-сообщений, которые не обновлялись более часа?")
-                    .setPositiveButton("Удалить", (d, which) -> {
-                        viewModel.cleanTemporaryTopics(60 * 60 * 1000);
-                    })
-                    .setNegativeButton("Отмена", null)
-                    .show();
-        });
-
         return view;
+    }
+
+    private void loadExpandedState() {
+        SharedPreferences prefs = getContext().getSharedPreferences("tree_state_all", Context.MODE_PRIVATE);
+        Set<String> groups = prefs.getStringSet("expanded_groups", new HashSet<>());
+        Set<String> leaves = prefs.getStringSet("expanded_leaves", new HashSet<>());
+        adapter.saveExpandedState(groups, leaves);
+    }
+
+    private void saveExpandedState() {
+        SharedPreferences prefs = getContext().getSharedPreferences("tree_state_all", Context.MODE_PRIVATE);
+        prefs.edit()
+                .putStringSet("expanded_groups", adapter.getExpandedGroups())
+                .putStringSet("expanded_leaves", adapter.getExpandedLeaves())
+                .apply();
     }
 
     @Override
@@ -125,7 +131,7 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     @Override
     protected void onServerChanged(String newFullUrl) {
         viewModel.setServerUrl(newFullUrl);
-        TopicRepository.getInstance(requireActivity().getApplication()).setCurrentServerUrl(newFullUrl);
+        refreshSubscriptions();
     }
 
     @Override
@@ -147,5 +153,10 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     protected void applyFilters() {
         String query = searchView.getQuery() != null ? searchView.getQuery().toString() : "";
         adapter.setFilter(query);
+    }
+
+    private void refreshSubscriptions() {
+        currentSubscriptions = TopicRepository.getInstance(getActivity().getApplication()).getSubscribedTopicsSet();
+        adapter.setSubscribedTopics(currentSubscriptions);
     }
 }

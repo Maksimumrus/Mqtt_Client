@@ -28,16 +28,15 @@
                 android:text="12:34:56"
                 android:textSize="18sp"
                 android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                android:textColor="?attr/colorOnSurface" />
 
-            <ImageView
-                android:id="@+id/message_qos_icon"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:src="@drawable/ic_priority_high"
-                android:contentDescription="QoS"
-                android:layout_marginEnd="4dp"
-                app:tint="?attr/colorPrimary" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="QOS: "
+                android:textSize="18sp"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurface"/>
 
             <TextView
                 android:id="@+id/message_qos"
@@ -45,15 +44,15 @@
                 android:layout_height="wrap_content"
                 android:text="1"
                 android:textSize="18sp"
-                android:textAppearance="?attr/textAppearanceBodySmall" />
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurface"/>
 
             <ImageView
                 android:id="@+id/message_retained_icon"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:src="@drawable/ic_bookmark_outline"
-                android:layout_marginStart="8dp"
-                android:visibility="gone" />
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_cloud_outlined"
+                android:layout_marginStart="8dp" />
         </LinearLayout>
 
         <TextView
@@ -64,6 +63,7 @@
             android:text="Текст сообщения"
             android:textSize="20sp"
             android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurface"
             android:fontFamily="monospace" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

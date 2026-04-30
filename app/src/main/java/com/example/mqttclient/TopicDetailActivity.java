@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.mqttclient.Accessory.MqttPrefsManager;
 import com.example.mqttclient.Accessory.MqttService;
+import com.example.mqttclient.Accessory.UiUtils;
 import com.example.mqttclient.Adapters.MessageAdapter;
 import com.example.mqttclient.Database.AppDatabase;
 import com.example.mqttclient.Database.MessageEntity;
@@ -26,6 +27,7 @@ import com.example.mqttclient.Models.Topic;
 import com.example.mqttclient.ViewModels.TopicDetailViewModel;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Date;
 
@@ -40,7 +42,7 @@ public class TopicDetailActivity extends AppCompatActivity {
     private TopicDetailViewModel viewModel;
 
     private TextView topicNameHeader;
-    private MaterialButton btnBack;
+    private MaterialButton btnBack, btnAdd, btnClear;
     private Chip statusValue;
     private TextView lastMessageTime;
     private RecyclerView messagesRecycler;
@@ -92,18 +94,53 @@ public class TopicDetailActivity extends AppCompatActivity {
         initViews();
         setupRecyclerView();
         observeData();
+        updateSubscriptionButton();
+        TopicRepository.getInstance(getApplication()).clearHasUnread(topicName);
     }
 
     private void initViews() {
         topicNameHeader = findViewById(R.id.topic_name_header);
         btnBack = findViewById(R.id.btn_back);
+        btnAdd = findViewById(R.id.btn_add_server);
+        btnClear = findViewById(R.id.btn_clear);
         statusValue = findViewById(R.id.status_value);
-//        clientValue = findViewById(R.id.client_value);
         lastMessageTime = findViewById(R.id.last_message_time);
         messagesRecycler = findViewById(R.id.messages_recycler);
 
         topicNameHeader.setText(topicName);
         btnBack.setOnClickListener(v -> finish());
+
+        btnAdd.setOnClickListener(v -> {
+            boolean isSubscribed = repository.getSubscribedTopicsSet().contains(topicName);
+            if (isSubscribed) {
+                if (MainActivity.getMqttService() != null)
+                    MainActivity.getMqttService().unsubscribe(topicName);
+                repository.removeSubscribedTopic(topicName);
+                btnAdd.setText("Подписаться");
+                UiUtils.showToast(this, "Удалено из избранного: " + topicName);
+                btnAdd.setIcon(getDrawable(R.drawable.ic_add));
+            } else {
+                if (MainActivity.getMqttService() != null)
+                    MainActivity.getMqttService().subscribe(topicName);
+                repository.addSubscribedTopic(topicName);
+                UiUtils.showToast(this, "Добавлено в избранное: " + topicName);
+                btnAdd.setText("Отписаться");
+                btnAdd.setIcon(getDrawable(R.drawable.ic_check));
+            }
+        });
+
+        btnClear.setOnClickListener(v -> {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Очистить историю")
+                    .setMessage("Удалить все сообщения этого топика?")
+                    .setPositiveButton("Удалить", (d, w) -> {
+                        repository.clearTopicHistory(topicName);
+                        // Обновить список сообщений (viewModel перезагрузится автоматически)
+                        Toast.makeText(this, "История очищена", Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton("Отмена", null)
+                    .show();
+        });
     }
 
     private void setupRecyclerView() {
@@ -162,4 +199,11 @@ public class TopicDetailActivity extends AppCompatActivity {
 //        viewModel.refreshTopicInfo();
 //        viewModel.getMessagesLiveData();
 //    }
+
+    private void updateSubscriptionButton() {
+        boolean isSubscribed = repository.getSubscribedTopicsSet().contains(topicName);
+        btnAdd.setText(isSubscribed ? "Отписаться" : "Подписаться");
+        btnAdd.setIcon(isSubscribed ?
+                getDrawable(R.drawable.ic_check) : getDrawable(R.drawable.ic_add));
+    }
 }

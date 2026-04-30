@@ -10,6 +10,7 @@ public class Topic {
     private boolean isActive;
     private boolean isSubscribed;
     private boolean hasRetained;
+    private boolean isUnread;
 
     public Topic (String name) {
         this.name = name;
@@ -69,5 +70,13 @@ public class Topic {
 
     public void setHasRetained(boolean hasRetained) {
         this.hasRetained = hasRetained;
+    }
+
+    public boolean isUnread() {
+        return isUnread;
+    }
+
+    public void setUnread(boolean unread) {
+        isUnread = unread;
     }
 }

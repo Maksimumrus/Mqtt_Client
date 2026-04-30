@@ -151,13 +151,22 @@ public class MqttService extends Service {
         var connectBuilder = client.connectWith()
                 .keepAlive(20);
 
-        String username = MqttPrefsManager.getUsernameForServer(this, brokerUrl);
-        String password = MqttPrefsManager.getPasswordForServer(this, brokerUrl);
-        if (username != null && !username.isEmpty()) {
-            connectBuilder.simpleAuth()
-                    .username(username)
-                    .password(password != null ? password.getBytes(StandardCharsets.UTF_8) : new byte[0])
-                    .applySimpleAuth();
+        if(!isPublicBroker(brokerUrl)) {
+            String username = MqttPrefsManager.getUsernameForServer(this, brokerUrl);
+            String password = MqttPrefsManager.getPasswordForServer(this, brokerUrl);
+
+            if (brokerUrl.equals(MqttPrefsManager.DEFAULT_BROKER) && username != null) {
+                Log.w(TAG, "Stored credentials for public broker, ignoring them");
+                username = null;
+                password = null;
+            }
+
+            if (username != null && !username.isEmpty()) {
+                connectBuilder.simpleAuth()
+                        .username(username)
+                        .password(password != null ? password.getBytes(StandardCharsets.UTF_8) : new byte[0])
+                        .applySimpleAuth();
+            }
         }
 
         notifyStatus("Подключение к " + brokerUrl + "...", false);
@@ -191,7 +200,7 @@ public class MqttService extends Service {
         MqttPrefsManager.saveBrokerUrl(this, brokerUrl);
         notifyStatus("Переключение на " + brokerUrl + "...", false);
 
-        if (client != null) {
+        if (client != null && isConnected) {
             // Отключаемся асинхронно, затем подключаемся снова
             client.disconnect().whenComplete((unused, throwable) -> {
                 if (throwable != null) {
@@ -207,8 +216,27 @@ public class MqttService extends Service {
         }
     }
 
+    public void disconnectNow() {
+        if (client != null) {
+            try {
+                client.disconnect().get(1, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception e) {
+                Log.e(TAG, "disconnectNow error", e);
+            }
+            client = null;
+        }
+        isConnected = false;
+    }
+
     public void setConnectionErrorListener(ConnectionErrorListener listener) {
         this.errorListener = listener;
+    }
+
+    public void getCurrentStatus() {
+        if (statusListener != null) {
+            String status = isConnected ? "Подключено к " + brokerUrl : "Отключено";
+            statusListener.onStatusChanged(status, isConnected);
+        }
     }
 
     private void handleMessage(Mqtt3Publish publish) {
@@ -219,6 +247,21 @@ public class MqttService extends Service {
 
         if (messageListener != null) {
             messageListener.onTopicDiscovered(topic, timestamp, retained);
+        }
+
+        List<MessageEntity> last = AppDatabase.getInstance(this).messageDao()
+                .getLastMessages(topic, brokerUrl, 1);
+        if (!last.isEmpty()) {
+            MessageEntity lastMsg = last.get(0);
+            if (lastMsg.payload.equals(payload)) {
+                if (retained) {
+                    return;
+                } else {
+                    if (Math.abs(timestamp - lastMsg.timestamp) < 2000) {
+                        return;
+                    }
+                }
+            }
         }
 
         if (retained) {
@@ -244,6 +287,7 @@ public class MqttService extends Service {
                 messageListener.onMessageArrived(topic, payload, timestamp, true);
                 messageListener.onTopicDiscovered(topic, timestamp, retained);
             }
+            TopicRepository.getInstance(getApplication()).updateTopicLastMessage(topic, payload, timestamp);
             return;
         }
 
@@ -256,7 +300,8 @@ public class MqttService extends Service {
         entity.serverUrl = brokerUrl;
         AppDatabase.getInstance(this).messageDao().insert(entity);
 
-        TopicRepository.getInstance(this.getApplication()).updateTopicLastMessage(topic, payload, timestamp);
+        TopicRepository.getInstance(getApplication()).updateTopicLastMessage(topic, payload, timestamp);
+        TopicRepository.getInstance(getApplication()).markHasUnread(topic);
 
         if (MqttPrefsManager.areNotificationsEnabled(this) &&
                 MqttPrefsManager.getSubscribedTopicsSet(this, brokerUrl).contains(topic)) {
@@ -403,5 +448,11 @@ public class MqttService extends Service {
 
     private void notifyStatus(String status, boolean connected) {
         if (statusListener != null) statusListener.onStatusChanged(status, connected);
+    }
+
+    private boolean isPublicBroker(String brokerUrl) {
+        return brokerUrl.contains("broker.emqx.io") ||
+                brokerUrl.contains("test.mosquitto.org") ||
+                brokerUrl.contains("broker.hivemq.com");
     }
 }

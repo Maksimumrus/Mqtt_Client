@@ -9,7 +9,7 @@
         android:id="@+id/FirstFragment"
         android:name="com.example.mqttclient.SubscribedTopicsFragment"
         android:label="@string/first_fragment_label"
-        tools:layout="@layout/fragment_subscribedl_topics">
+        tools:layout="@layout/fragment_subscribed_topics">
 
         <action
             android:id="@+id/action_FirstFragment_to_SecondFragment"

@@ -4,11 +4,14 @@ import android.app.Application;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
+import androidx.lifecycle.Transformations;
 
 import com.example.mqttclient.Database.AllTopicsEntity;
 import com.example.mqttclient.Database.AppDatabase;
 import com.example.mqttclient.Database.MessageEntity;
 import com.example.mqttclient.Models.Topic;
+import com.example.mqttclient.Models.TopicTreeNode;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -173,6 +176,7 @@ public class TopicRepository {
                 entity.setLastMessage(lastMessageText);
                 entity.setLastMessageTimestamp(lastMsgTimestamp);
             }
+//            markHasUnread(topic);
 
             AllTopicsEntity existing = getTopicEntitySync(topic);
             if (existing != null) {
@@ -207,6 +211,9 @@ public class TopicRepository {
             if (currentUrl == null) return;
             AppDatabase.getInstance(app).allTopicsDao()
                     .updateLastMessage(topic, currentUrl, payload, timestamp);
+            if (getSubscribedTopicsSet().contains(topic)) {
+                updateSubscribedList();
+            }
         });
     }
 
@@ -263,5 +270,45 @@ public class TopicRepository {
             // Удаляем топики, у которых hasRetained == 0 и lastSeenTimestamp < threshold
             AppDatabase.getInstance(app).allTopicsDao().deleteTemporaryTopics(currentServerUrl, threshold);
         });
+    }
+
+    public void markHasUnread(String topic) {
+        executor.execute(() -> {
+            AppDatabase.getInstance(app).allTopicsDao().setHasUnread(topic, currentServerUrl);
+        });
+    }
+
+    public void clearHasUnread(String topic) {
+        executor.execute(() -> {
+            AppDatabase.getInstance(app).allTopicsDao().clearHasUnread(topic, currentServerUrl);
+        });
+    }
+
+    public LiveData<List<TopicTreeNode>> getAllTopicsTree() {
+        return Transformations.map(getAllTopicsLive(), entities -> {
+            if (entities == null) return new ArrayList<>();
+            return TopicTreeBuilder.buildTree(entities, true);
+        });
+    }
+
+    public LiveData<List<TopicTreeNode>> getSubscribedTopicsTree() {
+        return Transformations.map(getSubscribedTopics(), topics -> {
+            if (topics == null) return new ArrayList<>();
+            return TopicTreeBuilder.buildTree(topics, false);
+        });
+    }
+
+    public void clearCacheForServer(String serverUrl) {
+        if (currentServerUrl.equals(serverUrl)) {
+            topicMap.clear();
+            loadSubscribedTopics();
+            // Немедленно очищаем LiveData, чтобы UI обновился
+            subscribedTopicsLive.postValue(new ArrayList<>());
+            updateSubscribedList(); // перезагрузит подписки для нового сервера
+        }
+    }
+
+    public void refreshSubscribedTopics() {
+        updateSubscribedList();
     }
 }

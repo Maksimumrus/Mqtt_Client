@@ -22,7 +22,7 @@ public interface MessageDao {
 //    @Query("SELECT * FROM messages WHERE topic = :topic ORDER BY timestamp DESC")
 //    List<MessageEntity> getAllMessagesForTopic(String topic);
 
-    @Query("SELECT * FROM messages WHERE topic = :topic AND serverUrl = :serverUrl ORDER BY timestamp ASC LIMIT :limit")
+    @Query("SELECT * FROM messages WHERE topic = :topic AND serverUrl = :serverUrl ORDER BY timestamp DESC LIMIT :limit")
     LiveData<List<MessageEntity>> getLastMessagesLive(String topic, String serverUrl, int limit);
 
     @Query("DELETE FROM messages WHERE topic = :topic AND serverUrl = :serverUrl")

@@ -6,6 +6,8 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 
+import com.example.mqttclient.R;
+
 public class UiUtils {
     public static void showToast(Context context, String message) {
         if (context != null && message != null) {
@@ -30,7 +32,7 @@ public class UiUtils {
     public static void showAlertDialog(Context context, String title, String message) {
         if (context == null) return;
 
-        new AlertDialog.Builder(context)
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context, R.style.ThemeOverlay_MQTTClient_AlertDialog)
                 .setTitle(title)
                 .setMessage(message)
                 .setPositiveButton("OK", null)

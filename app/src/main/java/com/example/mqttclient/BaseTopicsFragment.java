@@ -125,16 +125,17 @@ public abstract class BaseTopicsFragment extends Fragment implements MainActivit
         String current = MqttPrefsManager.getBrokerUrl(getContext());
         if (!newFullUrl.equals(current)) {
             MqttPrefsManager.saveBrokerUrl(getContext(), newFullUrl);
-            setupServerSpinner();               // обновляем спиннер
-            onServerChanged(newFullUrl);        // уведомляем дочерний фрагмент
+            setupServerSpinner();
+            onServerChanged(newFullUrl);
 
             if (mqttService != null) {
                 mqttService.changeBrokerUrl(newFullUrl);
+                // Принудительно запросить текущий статус
+                mqttService.getCurrentStatus();
                 pendingServerSwitch = null;
             } else {
                 pendingServerSwitch = newFullUrl;
             }
-            // НЕ вызываем refreshList() – полагаемся на LiveData
         }
     }
 
@@ -168,7 +169,7 @@ public abstract class BaseTopicsFragment extends Fragment implements MainActivit
      * @param oldPassword пароль (может быть null)
      */
     protected void showServerDialog(@Nullable String oldServerUrl, @Nullable String oldUsername, @Nullable String oldPassword) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        AlertDialog.Builder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.ThemeOverlay_MQTTClient_AlertDialog);
         builder.setTitle(oldServerUrl == null ? "Добавить MQTT сервер" : "Редактировать сервер");
 
         LinearLayout layout = new LinearLayout(getContext());
@@ -252,13 +253,20 @@ public abstract class BaseTopicsFragment extends Fragment implements MainActivit
         // Кнопка "Удалить" – только для редактирования существующего сервера
         if (oldServerUrl != null) {
             builder.setNeutralButton("Удалить", (d, w) -> {
+                if (mqttService != null) {
+                    mqttService.disconnectNow();
+                }
+
                 MqttPrefsManager.removeServerData(getContext(), oldServerUrl);
                 TopicRepository.getInstance(requireActivity().getApplication())
                         .deleteAllDataForServer(oldServerUrl);
-                // Обновляем спиннер и переключаемся на первый доступный сервер
+                TopicRepository.getInstance(requireActivity().getApplication())
+                        .clearCacheForServer(oldServerUrl);
                 setupServerSpinner();
                 String current = MqttPrefsManager.getBrokerUrl(getContext());
+                mqttService.changeBrokerUrl(current);
                 applyServerChange(current);
+                if (mqttService != null) mqttService.getCurrentStatus();
             });
         }
 
@@ -276,7 +284,7 @@ public abstract class BaseTopicsFragment extends Fragment implements MainActivit
             displayServers.add(MqttPrefsManager.displayUrl(url));
         }
         String[] items = displayServers.toArray(new String[0]);
-        new AlertDialog.Builder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.ThemeOverlay_MQTTClient_AlertDialog)
                 .setTitle("Управление серверами")
                 .setItems(items, (dialog, which) -> {
                     String selectedDisplay = items[which];

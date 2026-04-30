@@ -23,6 +23,12 @@ public interface AllTopicsDao {
     @Query("UPDATE all_topics SET lastMessage = :lastMessage, lastMessageTimestamp = :timestamp WHERE topicName = :topicName AND serverUrl = :serverUrl")
     void updateLastMessage(String topicName, String serverUrl, String lastMessage, long timestamp);
 
+    @Query("UPDATE all_topics SET hasUnread = 1 WHERE topicName = :topicName AND serverUrl = :serverUrl")
+    void setHasUnread(String topicName, String serverUrl);
+
+    @Query("UPDATE all_topics SET hasUnread = 0 WHERE topicName = :topicName AND serverUrl = :serverUrl")
+    void clearHasUnread(String topicName, String serverUrl);
+
     @Query("DELETE FROM all_topics WHERE serverUrl = :serverUrl")
     void deleteAllForServer(String serverUrl);
 

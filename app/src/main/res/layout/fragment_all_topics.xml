@@ -4,8 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="8dp"
-    android:background="?attr/colorSurface">
+    android:padding="8dp">
 
     <!-- Панель сервера -->
     <com.google.android.material.card.MaterialCardView
@@ -25,6 +24,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Сервер: "
+                android:textColor="?attr/colorOnSurface"
                 android:layout_gravity="center_vertical"/>
 
             <AutoCompleteTextView
@@ -34,6 +34,7 @@
                 android:layout_weight="1"
                 android:padding="8dp"
                 android:background="@drawable/spinner_background"
+                android:textColor="?attr/colorOnSurface"
                 android:singleLine="true"
                 android:ellipsize="end"
                 android:inputType="none"
@@ -47,7 +48,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 app:icon="@android:drawable/ic_input_add"
-                android:contentDescription="Применить сервер" />
+                android:contentDescription="Добавить сервер" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_reconnect"
@@ -67,7 +68,7 @@
         android:layout_marginBottom="8dp"
         app:cardCornerRadius="8dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="#FFE0B2">
+        app:cardBackgroundColor="@color/surface">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -89,7 +90,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Статус: отключено"
-                android:textColor="@android:color/black" />
+                android:textColor="?attr/colorOnSurface" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -108,7 +109,9 @@
             android:queryHint="Поиск топика или сообщения"
             android:iconifiedByDefault="false"
             android:focusable="true"
-            android:focusableInTouchMode="true" />
+            android:focusableInTouchMode="true"
+            android:theme="?attr/searchViewStyle"
+            android:searchIcon="@drawable/ic_search"/>
     </androidx.cardview.widget.CardView>
 
     <FrameLayout
@@ -127,15 +130,5 @@
             android:layout_gravity="center"
             android:visibility="gone"
             app:indicatorColor="?attr/colorPrimary" />
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fab_clear"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|end"
-            android:layout_margin="16dp"
-            android:src="@android:drawable/ic_menu_delete"
-            app:backgroundTint="?attr/colorError"
-            app:tint="@android:color/white" />
     </FrameLayout>
 </LinearLayout>

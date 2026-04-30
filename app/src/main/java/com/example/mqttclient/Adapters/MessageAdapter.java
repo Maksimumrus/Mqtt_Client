@@ -49,17 +49,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
 
     class MessageViewHolder extends RecyclerView.ViewHolder {
-        TextView messageTime, messagePayload;
-        ImageView qosIcon, retainedIcon;
+        TextView messageTime, messagePayload, messageQos;
+        ImageView retainedIcon;
 
         public MessageViewHolder(@NonNull View itemView) {
             super(itemView);
             messageTime = itemView.findViewById(R.id.message_time);
-//            messageQos = itemView.findViewById(R.id.message_qos);
-//            messageRetained = itemView.findViewById(R.id.message_retained);
+            messageQos = itemView.findViewById(R.id.message_qos);
             messagePayload = itemView.findViewById(R.id.message_payload);
-//            messageClientId = itemView.findViewById(R.id.message_client_id);
-            qosIcon = itemView.findViewById(R.id.message_qos_icon);
             retainedIcon = itemView.findViewById(R.id.message_retained_icon);
         }
 
@@ -73,25 +70,22 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
             switch (msg.qos) {
                 case 0:
-                    qosIcon.setImageResource(R.drawable.ic_qos_0);
-                    qosIcon.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.gray_600));
+                    messageQos.setText("0");
                     break;
                 case 1:
-                    qosIcon.setImageResource(R.drawable.ic_qos_1);
-                    qosIcon.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.blue_500));
+                    messageQos.setText("1");
                     break;
                 case 2:
-                    qosIcon.setImageResource(R.drawable.ic_qos_2);
-                    qosIcon.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.purple_500));
+                    messageQos.setText("2");
                     break;
             }
 
             if (msg.retained > 0) {
-                retainedIcon.setImageResource(R.drawable.ic_bookmark_filled);
+                retainedIcon.setImageResource(R.drawable.ic_cloud_filled);
                 retainedIcon.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.orange_500));
                 retainedIcon.setVisibility(View.VISIBLE);
             } else {
-                retainedIcon.setImageResource(R.drawable.ic_bookmark_outline);
+                retainedIcon.setImageResource(R.drawable.ic_cloud_filled);
                 retainedIcon.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.gray_400));
                 retainedIcon.setVisibility(View.VISIBLE);
             }

@@ -18,4 +18,18 @@
     <color name="gray_400">#BDBDBD</color>
     <color name="green">#4CAF50</color>
     <color name="red">#F44336</color>
+    <color name="background">#2C3E5E</color>        <!-- Главный фон приложения -->
+    <color name="surface">#334A6F</color>           <!-- Фон карточек и панелей (чуть светлее) -->
+    <color name="primary">#59D8A4</color>           <!-- Акцентный цвет (бирюзово-зелёный) -->
+    <color name="primary_variant">#3EBF92</color>   <!-- Более тёмный вариант primary -->
+    <color name="secondary">#404f69</color>
+    <color name="error">#F9517E</color>
+    <color name="text_primary">#F0F4FF</color>      <!-- Основной текст -->
+    <color name="text_secondary">#B0C4E6</color>    <!-- Второстепенный текст -->
+    <!-- Дополнительные цвета для тонкой настройки -->
+    <color name="outline">#55657D</color>
+    <color name="control_normal">#7A8EB5</color>
+    <!-- Цвета индикаторов и статусов -->
+    <color name="status_connected">#59D8A4</color>
+    <color name="status_disconnected">#F9517E</color>
 </resources>
