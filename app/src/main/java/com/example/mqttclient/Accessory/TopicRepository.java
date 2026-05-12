@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 public class TopicRepository {
     private static TopicRepository instance;
@@ -205,15 +206,49 @@ public class TopicRepository {
         return null;
     }
 
-    public void updateTopicLastMessage(String topic, String payload, long timestamp) {
+    public void updateTopicLastMessage(String topic, String payload, long timestamp, boolean isRetained) {
         executor.execute(() -> {
-            String currentUrl = this.currentServerUrl;
-            if (currentUrl == null) return;
-            AppDatabase.getInstance(app).allTopicsDao()
-                    .updateLastMessage(topic, currentUrl, payload, timestamp);
-            if (getSubscribedTopicsSet().contains(topic)) {
-                updateSubscribedList();
+            if (isRetained) {
+                // Для retained обновляем только если оно новее предыдущего retained
+                List<AllTopicsEntity> existing = AppDatabase.getInstance(app).allTopicsDao()
+                        .getTopic(topic, currentServerUrl); // нужно добавить этот метод в DAO
+                if (existing != null && !existing.isEmpty()) {
+                    AllTopicsEntity e = existing.get(0);
+                    if (e.lastMessageTimestamp < timestamp) {
+                        e.lastMessage = payload;
+                        e.lastMessageTimestamp = timestamp;
+                        AppDatabase.getInstance(app).allTopicsDao().update(e);
+                    }
+                } else {
+                    // если топика нет – создаём
+                    AllTopicsEntity entity = new AllTopicsEntity(topic, timestamp, true, currentServerUrl);
+                    entity.setLastMessage(payload);
+                    entity.setLastMessageTimestamp(timestamp);
+                    AppDatabase.getInstance(app).allTopicsDao().insert(entity);
+                }
+            } else {
+                // обычное сообщение – всегда обновляем lastMessage
+                AppDatabase.getInstance(app).allTopicsDao()
+                        .updateLastMessage(topic, currentServerUrl, payload, timestamp);
+                if (getSubscribedTopicsSet().contains(topic)) {
+                    updateSubscribedList();
+                }
             }
+        });
+    }
+
+    public void updateTopicLastSeen(String topic, long timestamp) {
+        executor.execute(() -> {
+            AppDatabase.getInstance(app).allTopicsDao()
+                    .updateLastSeen(topic, currentServerUrl, timestamp);
+        });
+    }
+
+    public void getLastNonRetainedMessageForTopicAsync(String topic, Consumer<List<MessageEntity>> callback) {
+        executor.execute(() -> {
+            List<MessageEntity> result = AppDatabase.getInstance(app).messageDao()
+                    .getLastNonRetainedMessage(topic, currentServerUrl);
+            if (callback != null) callback.accept(result);
         });
     }
 
@@ -223,6 +258,23 @@ public class TopicRepository {
 
     public LiveData<List<AllTopicsEntity>> getAllTopicsForServer(String serverUrl) {
         return AppDatabase.getInstance(app).allTopicsDao().getAllTopicsForServer(serverUrl);
+    }
+
+    public LiveData<List<MessageEntity>> getMessagesForTopic(String topic, int limit) {
+        return AppDatabase.getInstance(app).messageDao().getLastMessagesLive(topic, currentServerUrl, limit);
+    }
+
+    public List<MessageEntity> getLastMessageForTopic(String topic) {
+        return AppDatabase.getInstance(app).messageDao()
+                .getLastMessages(topic, currentServerUrl, 1);
+    }
+
+    public void getLastMessageForTopicAsync(String topic, java.util.function.Consumer<List<MessageEntity>> callback) {
+        executor.execute(() -> {
+            List<MessageEntity> result = AppDatabase.getInstance(app).messageDao()
+                    .getLastMessage(topic, currentServerUrl);
+            if (callback != null) callback.accept(result);
+        });
     }
 
     public void deleteAllDataForServer(String serverUrl) {
@@ -251,24 +303,28 @@ public class TopicRepository {
         return AppDatabase.getInstance(app).messageDao().getDistinctTopics(currentServerUrl);
     }
 
-    public LiveData<List<MessageEntity>> getMessagesForTopic(String topic, int limit) {
-        return AppDatabase.getInstance(app).messageDao().getLastMessagesLive(topic, currentServerUrl, limit);
-    }
-
-    public List<MessageEntity> getLastMessageForTopic(String topic) {
-        return AppDatabase.getInstance(app).messageDao()
-                .getLastMessages(topic, currentServerUrl, 1);
-    }
-
-    public void getLastMessageForTopicAsync(String topic, java.util.function.Consumer<List<MessageEntity>> callback) {
+    public void clearTopicHistory(String topic) {
         executor.execute(() -> {
-            List<MessageEntity> result = getLastMessageForTopic(topic);
-            if (callback != null) callback.accept(result);
+            AppDatabase.getInstance(app).messageDao().clearTopicHistory(topic, currentServerUrl);
         });
     }
 
-    public void clearTopicHistory(String topic) {
-        AppDatabase.getInstance(app).messageDao().clearTopicHistory(topic, currentServerUrl);
+    public void refreshTopicLastMessage(String topic) {
+        executor.execute(() -> {
+            List<MessageEntity> last = AppDatabase.getInstance(app).messageDao()
+                    .getLastMessage(topic, currentServerUrl);
+            if (last != null && !last.isEmpty()) {
+                MessageEntity msg = last.get(0);
+                updateTopicLastMessage(topic, msg.payload, msg.timestamp, msg.retained == 1);
+            } else {
+                // Сообщений нет – очищаем lastMessage
+                AppDatabase.getInstance(app).allTopicsDao()
+                        .updateLastMessage(topic, currentServerUrl, null, 0);
+                if (getSubscribedTopicsSet().contains(topic)) {
+                    updateSubscribedList();
+                }
+            }
+        });
     }
 
     public void cleanTemporaryTopics(long olderThanMillis) {
@@ -317,5 +373,14 @@ public class TopicRepository {
 
     public void refreshSubscribedTopics() {
         updateSubscribedList();
+    }
+
+    public void refreshAllDataForCurrentServer() {
+        executor.execute(() -> {
+            // Загрузить подписанные топики
+            loadSubscribedTopics();      // перечитывает из SharedPreferences
+            updateSubscribedList();      // обновит LiveData
+            // Обновить all_topics? Можно не трогать, они сами через LiveData
+        });
     }
 }

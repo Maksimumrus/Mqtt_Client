@@ -186,9 +186,7 @@ public class MqttService extends Service {
                 Set<String> topics = MqttPrefsManager.getSubscribedTopicsSet(MqttService.this, brokerUrl);
                 isConnected = true;
                 client.subscribeWith().topicFilter("#").callback(this::handleMessage).send();
-//                for (String topic : topics) {
-//                    subscribe(topic);
-//                }
+                TopicRepository.getInstance(getApplication()).refreshAllDataForCurrentServer();
             }
         });
     }
@@ -243,14 +241,12 @@ public class MqttService extends Service {
         if (topic == null || topic.trim().isEmpty()) return;
 
         topic = topic.trim();
-        // Проверка валидности wildcard
         if (topic.contains("#") && !topic.endsWith("#")) {
             Log.e(TAG, "Invalid topic filter (misplaced #): " + topic);
             UiUtils.showError(this, "Неверный топик: # должен быть в конце");
             return;
         }
         if (topic.contains("+")) {
-            // Проверка, что + не внутри сегмента
             String[] segments = topic.split("/");
             for (String seg : segments) {
                 if (seg.contains("+") && seg.length() > 1) {
@@ -261,30 +257,10 @@ public class MqttService extends Service {
             }
         }
 
-//        if (client != null) {
-//            String finalTopic = topic;
-//            client.subscribeWith()
-//                    .topicFilter(topic)
-//                    .callback(this::handleMessage)
-//                    .send()
-//                    .whenComplete((subAck, throwable) -> {
-//                        if (throwable != null) Log.e(TAG, "Subscribe failed", throwable);
-//                        else Log.d(TAG, "Subscribed to " + finalTopic);
-//                    });
-//        }
         MqttPrefsManager.addSubscribedTopic(this, brokerUrl, topic);
     }
 
     public void unsubscribe(String topic) {
-//        if (client != null) {
-//            client.unsubscribeWith()
-//                    .topicFilter(topic)
-//                    .send()
-//                    .whenComplete((unsubAck, throwable) -> {
-//                        if (throwable != null) Log.e(TAG, "Unsubscribe failed", throwable);
-//                        else Log.d(TAG, "Unsubscribed from " + topic);
-//                    });
-//        }
         MqttPrefsManager.removeSubscribedTopic(this, brokerUrl, topic);
     }
 
@@ -294,55 +270,16 @@ public class MqttService extends Service {
         long timestamp = System.currentTimeMillis();
         boolean retained = publish.isRetain();
 
-//        Set<String> subscribed = MqttPrefsManager.getSubscribedTopicsSet(this, brokerUrl);
-//        if (!subscribed.contains(topic)) {
-//            return;
-//        }
+        long withinMs = 2000;
+        List<MessageEntity> dup = AppDatabase.getInstance(this).messageDao()
+                .findDuplicate(topic, brokerUrl, payload, retained ? 1 : 0, timestamp - withinMs);
+        if (!dup.isEmpty()) {
+            Log.d(TAG, "Duplicate message ignored: " + topic);
+            return;
+        }
 
         if (messageListener != null) {
             messageListener.onTopicDiscovered(topic, timestamp, retained);
-        }
-
-//        List<MessageEntity> last = AppDatabase.getInstance(this).messageDao()
-//                .getLastMessages(topic, brokerUrl, 1);
-//        if (!last.isEmpty()) {
-//            MessageEntity lastMsg = last.get(0);
-//            if (lastMsg.payload.equals(payload)) {
-//                if (retained) {
-//                    return;
-//                } else {
-//                    if (Math.abs(timestamp - lastMsg.timestamp) < 2000) {
-//                        return;
-//                    }
-//                }
-//            }
-//        }
-
-        if (retained) {
-            // Проверяем, не дубликат ли уже сохранённого retained
-            List<MessageEntity> existing = AppDatabase.getInstance(this).messageDao()
-                    .getLastMessages(topic, brokerUrl, 1);
-            if (!existing.isEmpty() && existing.get(0).payload.equals(payload)) {
-                // То же самое retained – игнорируем полностью
-                return;
-            }
-            // Новое retained – сохраняем, но уведомление НЕ показываем
-            MessageEntity entity = new MessageEntity();
-            entity.topic = topic;
-            entity.payload = payload;
-            entity.timestamp = timestamp;
-            entity.qos = publish.getQos().getCode();
-            entity.retained = 1;
-            entity.serverUrl = brokerUrl;
-            AppDatabase.getInstance(this).messageDao().insert(entity);
-
-            // Уведомление для retained не отправляем!
-            if (messageListener != null) {
-                messageListener.onMessageArrived(topic, payload, timestamp, true);
-                messageListener.onTopicDiscovered(topic, timestamp, retained);
-            }
-            TopicRepository.getInstance(getApplication()).updateTopicLastMessage(topic, payload, timestamp);
-            return;
         }
 
         MessageEntity entity = new MessageEntity();
@@ -350,55 +287,41 @@ public class MqttService extends Service {
         entity.payload = payload;
         entity.timestamp = timestamp;
         entity.qos = publish.getQos().getCode();
-        entity.retained = 0;
+        entity.retained = retained ? 1 : 0;
         entity.serverUrl = brokerUrl;
         AppDatabase.getInstance(this).messageDao().insert(entity);
 
-        TopicRepository.getInstance(getApplication()).updateTopicLastMessage(topic, payload, timestamp);
-        TopicRepository.getInstance(getApplication()).markHasUnread(topic);
-
-        if (MqttPrefsManager.areNotificationsEnabled(this) &&
-                MqttPrefsManager.getSubscribedTopicsSet(this, brokerUrl).contains(topic)) {
-            showNotification(topic, payload);
+        TopicRepository repo = TopicRepository.getInstance(getApplication());
+        List<MessageEntity> lastAny = AppDatabase.getInstance(this).messageDao()
+                .getLastMessage(topic, brokerUrl);
+        boolean shouldUpdateLastMessage = true;
+        if (retained && !lastAny.isEmpty() && lastAny.get(0).retained == 1) {
+            if (lastAny.get(0).payload.equals(payload) && lastAny.get(0).timestamp >= timestamp) {
+                shouldUpdateLastMessage = false;
+            }
         }
+        if (shouldUpdateLastMessage) {
+            repo.updateTopicLastMessage(topic, payload, timestamp, retained);
+        } else {
+            repo.updateTopicLastSeen(topic, timestamp);
+        }
+
+        Set<String> subscribed = MqttPrefsManager.getSubscribedTopicsSet(this, brokerUrl);
+        if (subscribed.contains(topic)) {
+            boolean isNewImportant = !retained || (retained && shouldUpdateLastMessage);
+            if (isNewImportant) {
+                repo.markHasUnread(topic);
+                if (!retained && MqttPrefsManager.areNotificationsEnabled(this)) {
+                    showNotification(topic, payload);
+                }
+            }
+        }
+
+        // 6. Уведомляем слушателя (для обновления UI в реальном времени)
         if (messageListener != null) {
-            messageListener.onMessageArrived(topic, payload, timestamp, false);
+            messageListener.onMessageArrived(topic, payload, timestamp, retained);
         }
     }
-
-//    private void handleMessage(Mqtt3Publish publish) {
-//        String topic = publish.getTopic().toString();
-//        String payload = new String(publish.getPayloadAsBytes(), StandardCharsets.UTF_8);
-//        long timestamp = System.currentTimeMillis();
-//        boolean retained = publish.isRetain();
-//
-//        TopicRepository repo = TopicRepository.getInstance(this.getApplication());
-//
-//        // Сохраняем сообщение в БД
-//        MessageEntity entity = new MessageEntity();
-//        entity.topic = topic;
-//        entity.payload = payload;
-//        entity.timestamp = timestamp;
-//        entity.qos = publish.getQos().getCode();
-//        entity.retained = retained ? 1 : 0;
-//        entity.serverUrl = brokerUrl;
-//        AppDatabase.getInstance(this).messageDao().insert(entity);
-//
-//        // Обновляем последнее сообщение в таблице all_topics
-//        repo.updateTopicLastMessage(topic, payload, timestamp);
-//
-//        // Обнаружение топика (если нужно)
-//        if (messageListener != null) {
-//            messageListener.onTopicDiscovered(topic, timestamp, retained);
-//            messageListener.onMessageArrived(topic, payload, timestamp, retained);
-//        }
-//
-//        // Уведомление для обычных сообщений (не retained)
-//        if (!retained && MqttPrefsManager.areNotificationsEnabled(this) &&
-//                MqttPrefsManager.getSubscribedTopicsSet(this, brokerUrl).contains(topic)) {
-//            showNotification(topic, payload);
-//        }
-//    }
 
     @Override
     public IBinder onBind(Intent intent) { return binder; }

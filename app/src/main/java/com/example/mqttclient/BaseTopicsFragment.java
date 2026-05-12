@@ -139,24 +139,6 @@ public abstract class BaseTopicsFragment extends Fragment implements MainActivit
         }
     }
 
-//    protected void applyServerChange(String newFullUrl) {
-//        String current = MqttPrefsManager.getBrokerUrl(getContext());
-//        if (!newFullUrl.equals(current)) {
-//            MqttPrefsManager.saveBrokerUrl(getContext(), newFullUrl);
-//            setupServerSpinner();                 // обновляем спиннер
-//            onServerChanged(newFullUrl);          // уведомляем дочерний фрагмент
-//
-//            if (mqttService != null) {
-//                mqttService.changeBrokerUrl(newFullUrl);
-//                pendingServerSwitch = null;
-//            } else {
-//                pendingServerSwitch = newFullUrl; // отложенное переключение
-//            }
-//
-//            refreshList();                        // принудительное обновление списка
-//        }
-//    }
-
     /**
      * Уведомляет дочерний фрагмент о смене сервера (чтобы обновить ViewModel и т.п.).
      */

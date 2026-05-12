@@ -136,7 +136,7 @@ public class TopicDetailActivity extends AppCompatActivity {
                     .setMessage("Удалить все сообщения этого топика?")
                     .setPositiveButton("Удалить", (d, w) -> {
                         repository.clearTopicHistory(topicName);
-                        // Обновить список сообщений (viewModel перезагрузится автоматически)
+                        repository.refreshTopicLastMessage(topicName); // ← добавить
                         Toast.makeText(this, "История очищена", Toast.LENGTH_SHORT).show();
                     })
                     .setNegativeButton("Отмена", null)
@@ -151,14 +151,13 @@ public class TopicDetailActivity extends AppCompatActivity {
     }
 
     private void observeData() {
-        // Наблюдаем за списком сообщений
         viewModel.getMessagesLiveData().observe(this, messages -> {
             messageAdapter.setMessages(messages);
             if (messages != null && !messages.isEmpty()) {
-                messagesRecycler.scrollToPosition(messages.size() - 1);
+                messagesRecycler.scrollToPosition(0);
                 // Обновляем информацию о топике по последнему сообщению
-                MessageEntity lastMsg = messages.get(messages.size() - 1);
-                updateTopicInfoFromMessage(lastMsg);
+                MessageEntity lastMsg = messages.get(0);
+//                updateTopicInfoFromMessage(lastMsg);
             } else {
                 // Сообщений нет – сбрасываем статус
                 statusValue.setText("Неактивен");
@@ -178,29 +177,6 @@ public class TopicDetailActivity extends AppCompatActivity {
         lastMessageTime.setText("Последнее сообщение: " + sdf.format(new Date(msg.timestamp)));
     }
 
-//    private void updateTopicInfo(Topic topic) {
-//        boolean active = topic.isActive();
-//        statusValue.setText(active ? "Активен" : "Неактивен");
-//        statusValue.setTextColor(active ?
-//                getColor(android.R.color.holo_green_dark) :
-//                getColor(android.R.color.darker_gray));
-//
-//        String cid = topic.getClientId();
-//        clientValue.setText(cid != null ? cid : "unknown");
-//
-//        if (topic.getLastMessageTime() != null) {
-//            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.getDefault());
-//            lastMessageTime.setText("Последнее сообщение: " + sdf.format(topic.getLastMessageTime()));
-//        } else {
-//            lastMessageTime.setText("Последнее сообщение: нет");
-//        }
-//    }
-//
-//    private void loadTopicInfo() {
-//        viewModel.refreshTopicInfo();
-//        viewModel.getMessagesLiveData();
-//    }
-
     @Override
     protected void onResume() {
         super.onResume();
@@ -215,14 +191,24 @@ public class TopicDetailActivity extends AppCompatActivity {
     }
 
     private void refreshStatus() {
-        repository.getLastMessageForTopicAsync(topicName, last -> {
+        repository.getLastNonRetainedMessageForTopicAsync(topicName, nonRetained -> {
             runOnUiThread(() -> {
-                if (last != null && !last.isEmpty()) {
-                    updateTopicInfoFromMessage(last.get(0));
+                if (nonRetained != null && !nonRetained.isEmpty()) {
+                    MessageEntity lastNormal = nonRetained.get(0);
+                    boolean active = (System.currentTimeMillis() - lastNormal.timestamp < 5 * 60 * 1000);
+                    statusValue.setText(active ? "Активен" : "Неактивен");
+                    statusValue.setChipBackgroundColor(ColorStateList.valueOf(active ?
+                            getColor(android.R.color.holo_green_dark) : getColor(android.R.color.darker_gray)));
                 } else {
                     statusValue.setText("Неактивен");
                     statusValue.setChipBackgroundColor(ColorStateList.valueOf(getColor(android.R.color.darker_gray)));
-                    lastMessageTime.setText("Последнее сообщение: нет");
+                }
+            });
+        });
+        repository.getLastMessageForTopicAsync(topicName, any -> {
+            runOnUiThread(() -> {
+                if (any != null && !any.isEmpty()) {
+                    updateTopicInfoFromMessage(any.get(0));
                 }
             });
         });

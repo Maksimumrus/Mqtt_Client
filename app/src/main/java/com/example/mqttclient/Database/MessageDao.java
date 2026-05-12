@@ -25,6 +25,18 @@ public interface MessageDao {
     @Query("SELECT * FROM messages WHERE topic = :topic AND serverUrl = :serverUrl ORDER BY timestamp DESC LIMIT :limit")
     LiveData<List<MessageEntity>> getLastMessagesLive(String topic, String serverUrl, int limit);
 
+    @Query("SELECT * FROM messages WHERE topic = :topic AND serverUrl = :serverUrl " +
+            "AND payload = :payload AND retained = :retained AND timestamp > :since LIMIT 1")
+    List<MessageEntity> findDuplicate(String topic, String serverUrl, String payload, int retained, long since);
+
+    @Query("SELECT * FROM messages WHERE topic = :topic AND serverUrl = :serverUrl " +
+            "AND retained = 0 ORDER BY timestamp DESC LIMIT 1")
+    List<MessageEntity> getLastNonRetainedMessage(String topic, String serverUrl);
+
+    @Query("SELECT * FROM messages WHERE topic = :topic AND serverUrl = :serverUrl " +
+            "ORDER BY timestamp DESC LIMIT 1")
+    List<MessageEntity> getLastMessage(String topic, String serverUrl);
+
     @Query("DELETE FROM messages WHERE topic = :topic AND serverUrl = :serverUrl")
     void clearTopicHistory(String topic, String serverUrl);
 

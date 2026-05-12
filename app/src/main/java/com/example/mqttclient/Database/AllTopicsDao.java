@@ -20,6 +20,12 @@ public interface AllTopicsDao {
     @Query("SELECT * FROM all_topics WHERE serverUrl = :serverUrl ORDER BY topicName ASC")
     LiveData<List<AllTopicsEntity>> getAllTopicsForServer(String serverUrl);
 
+    @Query("SELECT * FROM all_topics WHERE topicName = :topic AND serverUrl = :serverUrl LIMIT 1")
+    List<AllTopicsEntity> getTopic(String topic, String serverUrl);
+
+    @Query("UPDATE all_topics SET lastSeenTimestamp = :timestamp WHERE topicName = :topic AND serverUrl = :serverUrl")
+    void updateLastSeen(String topic, String serverUrl, long timestamp);
+
     @Query("UPDATE all_topics SET lastMessage = :lastMessage, lastMessageTimestamp = :timestamp WHERE topicName = :topicName AND serverUrl = :serverUrl")
     void updateLastMessage(String topicName, String serverUrl, String lastMessage, long timestamp);
 
