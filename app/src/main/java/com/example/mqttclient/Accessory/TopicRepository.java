@@ -4,7 +4,6 @@ import android.app.Application;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.Observer;
 import androidx.lifecycle.Transformations;
 
 import com.example.mqttclient.Database.AllTopicsEntity;
@@ -54,7 +53,6 @@ public class TopicRepository {
         currentServerUrl = serverUrl;
         loadSubscribedTopics();
         updateSubscribedList();
-        // Очищаем карту топиков, чтобы загрузить новые
         topicMap.clear();
     }
 
@@ -86,7 +84,6 @@ public class TopicRepository {
         if (subscribedTopics.remove(topic)) {
             MqttPrefsManager.removeSubscribedTopic(app, currentServerUrl, topic);
             updateSubscribedList();
-            // Очистить историю? По желанию
         }
     }
 
@@ -112,11 +109,13 @@ public class TopicRepository {
                     boolean active = (msg.retained == 0) && (System.currentTimeMillis() - msg.timestamp < 5 * 60 * 1000);
                     topic.setActive(active);
                 } else {
+                    topic.setLastMessage(null);
+                    topic.setLastMessageTime(null);
+                    topic.setHasRetained(false);
                     topic.setActive(false);
                 }
                 list.add(topic);
             }
-            // postValue безопасен из любого потока
             subscribedTopicsLive.postValue(list);
         });
     }
@@ -130,9 +129,6 @@ public class TopicRepository {
 
         t.setLastMessage(payload);
         t.setHasRetained(isRetained);
-//        t.setLastMessageTime(new Date(timestamp));
-//        t.setClientId(clientId);
-//        t.setActive(isActive(timestamp));
 
         if (!isRetained) {
             t.setLastMessageTime(new Date(timestamp));
@@ -143,21 +139,6 @@ public class TopicRepository {
             updateSubscribedList();
         }
     }
-
-//    public void addDiscoveredTopic(String topic, long timestamp, boolean retained) {
-//        executor.execute(() -> {
-//            AllTopicsEntity entity = new AllTopicsEntity(topic, timestamp, retained, currentServerUrl);
-//
-//            AllTopicsEntity existing = getTopicEntitySync(topic);
-//            if (existing != null) {
-//                existing.lastSeenTimestamp = Math.max(existing.lastSeenTimestamp, timestamp);
-//                existing.hasRetained = existing.hasRetained || retained;
-//                AppDatabase.getInstance(app).allTopicsDao().update(existing);
-//            } else {
-//                AppDatabase.getInstance(app).allTopicsDao().insert(entity);
-//            }
-//        });
-//    }
 
     public void addDiscoveredTopic(String topic, long timestamp, boolean retained) {
         executor.execute(() -> {
@@ -377,10 +358,8 @@ public class TopicRepository {
 
     public void refreshAllDataForCurrentServer() {
         executor.execute(() -> {
-            // Загрузить подписанные топики
-            loadSubscribedTopics();      // перечитывает из SharedPreferences
-            updateSubscribedList();      // обновит LiveData
-            // Обновить all_topics? Можно не трогать, они сами через LiveData
+            loadSubscribedTopics();
+            updateSubscribedList();
         });
     }
 }

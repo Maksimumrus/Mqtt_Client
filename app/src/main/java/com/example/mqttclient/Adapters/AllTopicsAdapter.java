@@ -112,9 +112,13 @@ public class AllTopicsAdapter extends BaseTopicsAdapter<AllTopicsAdapter.ViewHol
                 expandedContent.setVisibility(isLeafExpanded ? View.VISIBLE : View.GONE);
                 if (isLeafExpanded) {
                     String msg = entity.getLastMessage();
-                    lastMessageExpanded.setText(msg != null ? msg : "нет сообщений");
+                    lastMessageExpanded.setText(msg != null ? msg : "Нет сообщений");
                     long time = entity.getLastMessageTimestamp() > 0 ? entity.getLastMessageTimestamp() : entity.lastSeenTimestamp;
-                    timestamp.setText(dateFormat.format(time));
+                    if (time > 0) {
+                        timestamp.setText(dateFormat.format(time));
+                    } else {
+                        timestamp.setText("");
+                    }
                     statusText.setVisibility(View.GONE);
                 }
 

@@ -112,7 +112,6 @@ public class AllTopicsFragment extends BaseTopicsFragment {
 
     @Override
     protected void onMqttServiceReadyExtended(MqttService service) {
-        // Подписываемся на обнаружение топиков
         service.setMessageListener(new MqttService.MessageListener() {
             @Override
             public void onMessageArrived(String topic, String payload, long timestamp, boolean retained) { }
@@ -129,7 +128,7 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     }
 
     @Override
-    protected void onServerChanged(String newFullUrl) {
+    public void onServerChanged(String newFullUrl) {
         viewModel.setServerUrl(newFullUrl);
         refreshSubscriptions();
     }
@@ -139,15 +138,6 @@ public class AllTopicsFragment extends BaseTopicsFragment {
         currentSubscriptions = TopicRepository.getInstance(getActivity().getApplication()).getSubscribedTopicsSet();
         adapter.setSubscribedTopics(currentSubscriptions);
     }
-
-//    @Override
-//    protected void refreshList() {
-//        currentSubscriptions = TopicRepository.getInstance(getActivity().getApplication()).getSubscribedTopicsSet();
-//        adapter.setSubscribedTopics(currentSubscriptions);
-//        if (viewModel.getAllTopics().getValue() != null) {
-//            adapter.setTopics(viewModel.getAllTopics().getValue());
-//        }
-//    }
 
     @Override
     protected void applyFilters() {

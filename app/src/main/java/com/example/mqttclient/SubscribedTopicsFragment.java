@@ -32,7 +32,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 public class SubscribedTopicsFragment extends BaseTopicsFragment {
@@ -152,14 +151,13 @@ public class SubscribedTopicsFragment extends BaseTopicsFragment {
     }
 
     @Override
-    protected void onServerChanged(String newFullUrl) {
+    public void onServerChanged(String newFullUrl) {
         TopicRepository.getInstance(requireActivity().getApplication()).setCurrentServerUrl(newFullUrl);
         viewModel.refresh();
     }
 
     @Override
     protected void refreshList() {
-        // Принудительно перезапрашиваем текущий список подписок у репозитория
         List<Topic> topics = TopicRepository.getInstance(requireActivity().getApplication())
                 .getSubscribedTopics().getValue();
         if (topics != null) {
@@ -167,13 +165,6 @@ public class SubscribedTopicsFragment extends BaseTopicsFragment {
             loadExpandedState();
         }
     }
-
-//    @Override
-//    protected void refreshList() {
-//        if (viewModel.getSubscribedTopics().getValue() != null) {
-//            adapter.setData(viewModel.getSubscribedTopics().getValue());
-//        }
-//    }
 
     @Override
     protected void applyFilters() {
