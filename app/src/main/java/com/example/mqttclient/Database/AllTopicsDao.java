@@ -23,6 +23,9 @@ public interface AllTopicsDao {
     @Query("SELECT * FROM all_topics WHERE topicName = :topic AND serverUrl = :serverUrl LIMIT 1")
     List<AllTopicsEntity> getTopic(String topic, String serverUrl);
 
+    @Query("SELECT * FROM all_topics WHERE serverUrl = :serverUrl")
+    List<AllTopicsEntity> getAllTopicsForServerSync(String serverUrl);
+
     @Query("UPDATE all_topics SET lastSeenTimestamp = :timestamp WHERE topicName = :topic AND serverUrl = :serverUrl")
     void updateLastSeen(String topic, String serverUrl, long timestamp);
 

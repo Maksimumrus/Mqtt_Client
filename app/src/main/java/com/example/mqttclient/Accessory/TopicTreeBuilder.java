@@ -14,14 +14,17 @@ public class TopicTreeBuilder {
         for (Object item : items) {
             String fullPath;
             Object data;
+            boolean hasUnread;
             if (isAllTopics) {
                 AllTopicsEntity entity = (AllTopicsEntity) item;
                 fullPath = entity.getTopicName();
                 data = entity;
+                hasUnread = entity.hasUnread;
             } else {
                 Topic topic = (Topic) item;
                 fullPath = topic.getName();
                 data = topic;
+                hasUnread = topic.isUnread();
             }
             String[] segments = fullPath.split("/");
             StringBuilder currentPath = new StringBuilder();
@@ -35,11 +38,11 @@ public class TopicTreeBuilder {
                 if (!nodeMap.containsKey(path)) {
                     TopicTreeNode node;
                     if (i == segments.length - 1) {
-                        // лист (сам топик)
                         node = TopicTreeNode.createLeaf(seg, path, data);
+                        node.hasUnread = hasUnread;
                     } else {
-                        // промежуточная группа
                         node = TopicTreeNode.createGroup(seg, path);
+                        node.hasUnread = false;
                     }
                     nodeMap.put(path, node);
                     if (parent == null) {
@@ -52,17 +55,41 @@ public class TopicTreeBuilder {
             }
         }
 
-        // Сортировка детей по отображаемому имени
-        for (TopicTreeNode node : nodeMap.values()) {
-            node.children.sort(Comparator.comparing(n -> n.displayName));
+        for (TopicTreeNode root : roots) {
+            propagateUnreadAndSort(root);
         }
-        roots.sort(Comparator.comparing(r -> r.displayName));
+        // Сортировка корней
+        roots.sort((a, b) -> {
+            if (a.hasUnread != b.hasUnread) return Boolean.compare(b.hasUnread, a.hasUnread);
+            return a.displayName.compareToIgnoreCase(b.displayName);
+        });
+
         return roots;
     }
 
-    /**
-     * Преобразует дерево в плоский список для RecyclerView с учётом раскрытых групп.
-     */
+    private static void propagateUnreadAndSort(TopicTreeNode node) {
+        if (node.type == TopicTreeNode.Type.LEAF) {
+            return;
+        }
+        for (TopicTreeNode child : node.children) {
+            propagateUnreadAndSort(child);
+        }
+
+        boolean groupHasUnread = false;
+        for (TopicTreeNode child : node.children) {
+            if (child.hasUnread) {
+                groupHasUnread = true;
+                break;
+            }
+        }
+        node.hasUnread = groupHasUnread;
+        node.children.sort((a, b) -> {
+            if (a.hasUnread != b.hasUnread) return Boolean.compare(b.hasUnread, a.hasUnread);
+            return a.displayName.compareToIgnoreCase(b.displayName);
+        });
+    }
+
+
     public static List<TopicTreeNode> flattenTree(List<TopicTreeNode> roots, Set<String> expandedPaths) {
         List<TopicTreeNode> flat = new ArrayList<>();
         for (TopicTreeNode node : roots) {

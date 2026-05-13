@@ -141,6 +141,7 @@ public class SubscribedTopicsFragment extends BaseTopicsFragment {
                     getActivity().runOnUiThread(() -> {
                         TopicRepository repo = TopicRepository.getInstance(getActivity().getApplication());
                         repo.updateLastMessage(topic, payload, timestamp, retained);
+                        repo.markHasUnread(topic);
                     });
                 }
             }

@@ -20,7 +20,7 @@ import java.util.concurrent.Executors;
 
 public class AllTopicsViewModel extends AndroidViewModel {
     private TopicRepository repository;
-    private MutableLiveData <String> currentServerUrl = new MutableLiveData<>();
+    public MutableLiveData <String> currentServerUrl = new MutableLiveData<>();
     private LiveData<List<TopicTreeNode>> allTopicsTree;
     private Application app;
     private ExecutorService executor = Executors.newSingleThreadExecutor();

@@ -91,7 +91,7 @@ public class AllTopicsAdapter extends BaseTopicsAdapter<AllTopicsAdapter.ViewHol
                 btnExpand.setOnClickListener(toggleListener);
                 itemView.setOnClickListener(toggleListener);
                 btnAction.setVisibility(View.GONE);
-                unreadIndicator.setVisibility(View.GONE);
+                unreadIndicator.setVisibility(node.hasUnread ? View.VISIBLE : View.GONE);
                 expandedContent.setVisibility(View.GONE);
             } else {
                 AllTopicsEntity entity = (AllTopicsEntity) node.data;

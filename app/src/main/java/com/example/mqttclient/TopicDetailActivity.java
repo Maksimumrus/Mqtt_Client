@@ -59,6 +59,10 @@ public class TopicDetailActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_topic_details);
 
+        if (savedInstanceState == null) {
+            TopicRepository.getInstance(getApplication()).clearHasUnread(topicName);
+        }
+
         topicName = getIntent().getStringExtra(EXTRA_TOPIC);
         if (topicName == null) {
             finish();

@@ -13,6 +13,7 @@ public class TopicTreeNode {
     public List<TopicTreeNode> children = new ArrayList<>();
     public boolean isExpanded;
     public int depth;
+    public boolean hasUnread;
 
     public static TopicTreeNode createGroup(String displayName, String fullPath) {
         TopicTreeNode node = new TopicTreeNode();

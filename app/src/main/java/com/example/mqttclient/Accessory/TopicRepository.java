@@ -90,21 +90,24 @@ public class TopicRepository {
     private void updateSubscribedList() {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
+            List<AllTopicsEntity> allTopics = AppDatabase.getInstance(app).allTopicsDao()
+                    .getAllTopicsForServerSync(currentServerUrl); // нужен синхронный метод
+            Map<String, Boolean> unreadMap = new HashMap<>();
+            for (AllTopicsEntity e : allTopics) {
+                unreadMap.put(e.topicName, e.isHasUnread());
+            }
+
             List<Topic> list = new ArrayList<>();
             Set<String> topics = getSubscribedTopicsSet();
             for (String t : topics) {
-                Topic topic = topicMap.get(t);
-                if (topic == null) {
-                    topic = new Topic(t);
-                    topicMap.put(t, topic);
-                }
+                Topic topic = new Topic(t);
+                // последнее сообщение (как было)
                 List<MessageEntity> lastMsgs = AppDatabase.getInstance(app).messageDao()
                         .getLastMessages(t, currentServerUrl, 1);
                 if (!lastMsgs.isEmpty()) {
                     MessageEntity msg = lastMsgs.get(0);
                     topic.setLastMessage(msg.payload);
                     topic.setLastMessageTime(new Date(msg.timestamp));
-                    topic.setClientId(msg.clientId);
                     topic.setHasRetained(msg.retained == 1);
                     boolean active = (msg.retained == 0) && (System.currentTimeMillis() - msg.timestamp < 5 * 60 * 1000);
                     topic.setActive(active);
@@ -114,6 +117,7 @@ public class TopicRepository {
                     topic.setHasRetained(false);
                     topic.setActive(false);
                 }
+                topic.setUnread(unreadMap.getOrDefault(t, false));
                 list.add(topic);
             }
             subscribedTopicsLive.postValue(list);
@@ -162,13 +166,15 @@ public class TopicRepository {
 
             AllTopicsEntity existing = getTopicEntitySync(topic);
             if (existing != null) {
-                // Обновляем только если новее
                 existing.lastSeenTimestamp = Math.max(existing.lastSeenTimestamp, timestamp);
                 existing.hasRetained = existing.hasRetained || retained;
+                boolean oldUnread = existing.hasUnread;
                 if (lastMsgTimestamp > existing.getLastMessageTimestamp()) {
                     existing.setLastMessage(lastMessageText);
                     existing.setLastMessageTimestamp(lastMsgTimestamp);
                 }
+                AppDatabase.getInstance(app).allTopicsDao().update(existing);
+                existing.hasUnread = oldUnread;
                 AppDatabase.getInstance(app).allTopicsDao().update(existing);
             } else {
                 AppDatabase.getInstance(app).allTopicsDao().insert(entity);
@@ -190,25 +196,22 @@ public class TopicRepository {
     public void updateTopicLastMessage(String topic, String payload, long timestamp, boolean isRetained) {
         executor.execute(() -> {
             if (isRetained) {
-                // Для retained обновляем только если оно новее предыдущего retained
                 List<AllTopicsEntity> existing = AppDatabase.getInstance(app).allTopicsDao()
-                        .getTopic(topic, currentServerUrl); // нужно добавить этот метод в DAO
+                        .getTopic(topic, currentServerUrl);
                 if (existing != null && !existing.isEmpty()) {
                     AllTopicsEntity e = existing.get(0);
-                    if (e.lastMessageTimestamp < timestamp) {
+                    if (!payload.equals(e.lastMessage)) {
                         e.lastMessage = payload;
                         e.lastMessageTimestamp = timestamp;
                         AppDatabase.getInstance(app).allTopicsDao().update(e);
                     }
                 } else {
-                    // если топика нет – создаём
                     AllTopicsEntity entity = new AllTopicsEntity(topic, timestamp, true, currentServerUrl);
                     entity.setLastMessage(payload);
                     entity.setLastMessageTimestamp(timestamp);
                     AppDatabase.getInstance(app).allTopicsDao().insert(entity);
                 }
             } else {
-                // обычное сообщение – всегда обновляем lastMessage
                 AppDatabase.getInstance(app).allTopicsDao()
                         .updateLastMessage(topic, currentServerUrl, payload, timestamp);
                 if (getSubscribedTopicsSet().contains(topic)) {
@@ -319,12 +322,19 @@ public class TopicRepository {
     public void markHasUnread(String topic) {
         executor.execute(() -> {
             AppDatabase.getInstance(app).allTopicsDao().setHasUnread(topic, currentServerUrl);
+            if (getSubscribedTopicsSet().contains(topic)) {
+                updateSubscribedList();
+            }
+            AppDatabase.getInstance(app).allTopicsDao().getAllTopicsForServerSync(currentServerUrl);
         });
     }
 
     public void clearHasUnread(String topic) {
         executor.execute(() -> {
             AppDatabase.getInstance(app).allTopicsDao().clearHasUnread(topic, currentServerUrl);
+            if (getSubscribedTopicsSet().contains(topic)) {
+                updateSubscribedList();
+            }
         });
     }
 

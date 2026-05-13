@@ -4,15 +4,16 @@ import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
-@Entity(tableName = "all_topics")
+@Entity(tableName = "all_topics",
+        primaryKeys = {"topicName", "serverUrl"})
 public class AllTopicsEntity {
-    @PrimaryKey
     @NonNull
     public String topicName;
     public long lastSeenTimestamp;
     public String lastMessage;
     public long lastMessageTimestamp;
     public boolean hasRetained;
+    @NonNull
     public String serverUrl;
     public boolean hasUnread;
 

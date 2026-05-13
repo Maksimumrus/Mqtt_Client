@@ -295,9 +295,12 @@ public class MqttService extends Service {
         List<MessageEntity> lastAny = AppDatabase.getInstance(this).messageDao()
                 .getLastMessage(topic, brokerUrl);
         boolean shouldUpdateLastMessage = true;
-        if (retained && !lastAny.isEmpty() && lastAny.get(0).retained == 1) {
-            if (lastAny.get(0).payload.equals(payload) && lastAny.get(0).timestamp >= timestamp) {
+        boolean isDuplicateRetained = false;
+
+        if (retained && !lastAny.isEmpty()) {
+            if (lastAny.get(0).payload.equals(payload)) {
                 shouldUpdateLastMessage = false;
+                isDuplicateRetained = true;
             }
         }
         if (shouldUpdateLastMessage) {
@@ -308,8 +311,8 @@ public class MqttService extends Service {
 
         Set<String> subscribed = MqttPrefsManager.getSubscribedTopicsSet(this, brokerUrl);
         if (subscribed.contains(topic)) {
-            boolean isNewImportant = !retained || (retained && shouldUpdateLastMessage);
-            if (isNewImportant) {
+            boolean shouldMarkUnread = !retained || (retained && !isDuplicateRetained);
+            if (shouldMarkUnread) {
                 repo.markHasUnread(topic);
                 if (!retained && MqttPrefsManager.areNotificationsEnabled(this)) {
                     showNotification(topic, payload);
