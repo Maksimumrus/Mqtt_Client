@@ -4,10 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
-import android.text.TextUtils;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -18,19 +14,16 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.mqttclient.Accessory.MqttPrefsManager;
 import com.example.mqttclient.Accessory.MqttService;
+import com.example.mqttclient.Accessory.TopicRepository;
 import com.example.mqttclient.Accessory.UiUtils;
 import com.example.mqttclient.Adapters.MessageAdapter;
-import com.example.mqttclient.Database.AppDatabase;
 import com.example.mqttclient.Database.MessageEntity;
-import com.example.mqttclient.Accessory.TopicRepository;
-import com.example.mqttclient.Models.Topic;
 import com.example.mqttclient.ViewModels.TopicDetailViewModel;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Date;
-import java.util.List;
 
 public class TopicDetailActivity extends AppCompatActivity {
 

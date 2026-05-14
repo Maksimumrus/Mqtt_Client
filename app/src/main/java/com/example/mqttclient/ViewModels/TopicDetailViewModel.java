@@ -4,13 +4,10 @@ import android.app.Application;
 
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
 
-import com.example.mqttclient.Database.MessageEntity;
-import com.example.mqttclient.Models.Topic;
 import com.example.mqttclient.Accessory.TopicRepository;
+import com.example.mqttclient.Database.MessageEntity;
 
-import java.util.Date;
 import java.util.List;
 
 public class TopicDetailViewModel extends AndroidViewModel {
