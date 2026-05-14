@@ -2,7 +2,6 @@ package com.example.mqttclient.Database;
 
 import androidx.annotation.NonNull;
 import androidx.room.Entity;
-import androidx.room.PrimaryKey;
 
 @Entity(tableName = "all_topics",
         primaryKeys = {"topicName", "serverUrl"})
@@ -17,7 +16,7 @@ public class AllTopicsEntity {
     public String serverUrl;
     public boolean hasUnread;
 
-    public AllTopicsEntity(String topicName, long lastSeenTimestamp, boolean hasRetained, String serverUrl) {
+    public AllTopicsEntity(@NonNull String topicName, long lastSeenTimestamp, boolean hasRetained, @NonNull String serverUrl) {
         this.topicName = topicName;
         this.lastSeenTimestamp = lastSeenTimestamp;
         this.lastMessage = null;
@@ -36,22 +35,13 @@ public class AllTopicsEntity {
     public long getLastMessageTimestamp() {
         return lastMessageTimestamp;
     }
-    public boolean isHasRetained() {
-        return hasRetained;
-    }
     public boolean isHasUnread() {
         return hasUnread;
     }
-
     public void setLastMessage(String lastMessage) {
         this.lastMessage = lastMessage;
     }
-
     public void setLastMessageTimestamp(long lastMessageTimestamp) {
         this.lastSeenTimestamp = lastMessageTimestamp;
-    }
-
-    public void setHasUnread(boolean hasUnread) {
-        this.hasUnread = hasUnread;
     }
 }

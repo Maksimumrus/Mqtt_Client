@@ -1,24 +1,17 @@
 package com.example.mqttclient;
 
 import android.os.Bundle;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
-import androidx.fragment.app.Fragment;
-
-import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
-import android.widget.EditText;
-import android.widget.ImageButton;
-import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 
 import com.example.mqttclient.Accessory.MqttPrefsManager;
 import com.example.mqttclient.Accessory.MqttService;
@@ -27,7 +20,6 @@ import com.example.mqttclient.Accessory.UiUtils;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -38,16 +30,14 @@ public class ServerSettingsFragment extends Fragment {
 
     private Spinner serverSpinner;
     private TextInputEditText editHost, editPort, editUsername, editPassword;
-    private MaterialButton btnAdd, btnUpdate, btnDelete, btnReconnect;
     private TextView currentServerStatus;
     private View ledIndicator;
 
     private List<String> fullServerList = new ArrayList<>();
-    private List<String> displayServerList = new ArrayList<>();
+    private final List<String> displayServerList = new ArrayList<>();
     private ArrayAdapter<String> spinnerAdapter;
 
     private MqttService.ConnectionStatusListener statusListener;
-    private MqttService.ConnectionErrorListener errorListener;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
@@ -59,10 +49,10 @@ public class ServerSettingsFragment extends Fragment {
         editPort = view.findViewById(R.id.edit_port);
         editUsername = view.findViewById(R.id.edit_username);
         editPassword = view.findViewById(R.id.edit_password);
-        btnAdd = view.findViewById(R.id.btn_add_server);
-        btnUpdate = view.findViewById(R.id.btn_update_server);
-        btnDelete = view.findViewById(R.id.btn_delete_server);
-        btnReconnect = view.findViewById(R.id.btn_reconnect);
+        MaterialButton btnAdd = view.findViewById(R.id.btn_add_server);
+        MaterialButton btnUpdate = view.findViewById(R.id.btn_update_server);
+        MaterialButton btnDelete = view.findViewById(R.id.btn_delete_server);
+        MaterialButton btnReconnect = view.findViewById(R.id.btn_reconnect);
         currentServerStatus = view.findViewById(R.id.current_server_status);
         ledIndicator = view.findViewById(R.id.led_indicator);
 
@@ -116,7 +106,7 @@ public class ServerSettingsFragment extends Fragment {
             service.setConnectionStatusListener(statusListener);
             service.getCurrentStatus();
 
-            errorListener = (errorMessage, failedUrl) -> {
+            MqttService.ConnectionErrorListener errorListener = (errorMessage, failedUrl) -> {
                 if (isAdded() && getActivity() != null) {
                     requireActivity().runOnUiThread(() -> {
                         UiUtils.showError(requireContext(), "Ошибка сервера: " + errorMessage);

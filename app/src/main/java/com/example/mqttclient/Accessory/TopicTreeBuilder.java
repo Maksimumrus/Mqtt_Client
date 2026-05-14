@@ -58,7 +58,6 @@ public class TopicTreeBuilder {
         for (TopicTreeNode root : roots) {
             propagateUnreadAndSort(root);
         }
-        // Сортировка корней
         roots.sort((a, b) -> {
             if (a.hasUnread != b.hasUnread) return Boolean.compare(b.hasUnread, a.hasUnread);
             return a.displayName.compareToIgnoreCase(b.displayName);
@@ -87,24 +86,5 @@ public class TopicTreeBuilder {
             if (a.hasUnread != b.hasUnread) return Boolean.compare(b.hasUnread, a.hasUnread);
             return a.displayName.compareToIgnoreCase(b.displayName);
         });
-    }
-
-
-    public static List<TopicTreeNode> flattenTree(List<TopicTreeNode> roots, Set<String> expandedPaths) {
-        List<TopicTreeNode> flat = new ArrayList<>();
-        for (TopicTreeNode node : roots) {
-            flattenNode(node, flat, expandedPaths, 0);
-        }
-        return flat;
-    }
-
-    private static void flattenNode(TopicTreeNode node, List<TopicTreeNode> out, Set<String> expandedPaths, int depth) {
-        node.depth = depth;
-        out.add(node);
-        if (node.type == TopicTreeNode.Type.GROUP && expandedPaths.contains(node.fullPath)) {
-            for (TopicTreeNode child : node.children) {
-                flattenNode(child, out, expandedPaths, depth + 1);
-            }
-        }
     }
 }

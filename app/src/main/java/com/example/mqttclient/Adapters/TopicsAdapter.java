@@ -3,7 +3,6 @@ package com.example.mqttclient.Adapters;
 import android.view.View;
 
 import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
 
 import com.example.mqttclient.Accessory.TopicTreeBuilder;
 import com.example.mqttclient.Models.Topic;
@@ -14,12 +13,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 public class TopicsAdapter extends BaseTopicsAdapter<TopicsAdapter.ViewHolder> {
-
-    private Set<String> subscribedTopics;
-    private SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM HH:mm", Locale.getDefault());
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM HH:mm", Locale.getDefault());
     private List<TopicTreeNode> originalRoots;
     private String filterQuery = "";
 
@@ -33,36 +29,13 @@ public class TopicsAdapter extends BaseTopicsAdapter<TopicsAdapter.ViewHolder> {
         if (topics == null) topics = new ArrayList<>();
         originalRoots = TopicTreeBuilder.buildTree(topics, false);
         if (originalRoots == null) originalRoots = new ArrayList<>();
-        autoExpandGroups(originalRoots);
+//        autoExpandGroups(originalRoots);
         super.setTreeRoots(originalRoots);
     }
 
     public void setFilter(String query) {
         this.filterQuery = (query == null) ? "" : query.toLowerCase();
         applyFilters();
-    }
-
-    public void initExpandedLeaves(Set<String> leaves) {
-        expandedLeaves.clear();
-        if (leaves.isEmpty()) {
-            if (originalRoots != null) {
-                addAllLeaves(originalRoots);
-            }
-        } else {
-            expandedLeaves.addAll(leaves);
-        }
-        rebuildFlatList();
-    }
-
-    private void addAllLeaves(List<TopicTreeNode> nodes) {
-        if (nodes == null) return;
-        for (TopicTreeNode node : nodes) {
-            if (node.type == TopicTreeNode.Type.LEAF) {
-                expandedLeaves.add(node.fullPath + "_leaf");
-            } else {
-                addAllLeaves(node.children);
-            }
-        }
     }
 
     private void applyFilters() {

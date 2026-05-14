@@ -17,7 +17,7 @@ import java.util.Set;
 public class AllTopicsAdapter extends BaseTopicsAdapter<AllTopicsAdapter.ViewHolder> {
 
     private Set<String> subscribedTopics;
-    private SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM HH:mm", Locale.getDefault());
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM HH:mm", Locale.getDefault());
     private List<TopicTreeNode> originalRoots;
     private String filterQuery = "";
 

@@ -22,7 +22,7 @@ import java.util.Locale;
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
 
     private List<MessageEntity> messages = new ArrayList<>();
-    private SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss dd.MM.yyyy", Locale.getDefault());
+    private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss dd.MM.yyyy", Locale.getDefault());
 
     public void setMessages(List<MessageEntity> messages) {
         this.messages = messages != null ? messages : new ArrayList<>();
@@ -61,7 +61,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         }
 
         void bind(MessageEntity msg) {
-            // timestamp теперь long, всегда имеет значение (0 по умолчанию, но мы не сохраняем 0)
             if (msg.timestamp > 0) {
                 messageTime.setText(timeFormat.format(new Date(msg.timestamp)));
             } else {
@@ -90,21 +89,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 retainedIcon.setVisibility(View.VISIBLE);
             }
 
-//            if (msg.retained > 0) {
-//                messageRetained.setVisibility(View.VISIBLE);
-//                messageRetained.setText("RET");
-//            } else {
-//                messageRetained.setVisibility(View.GONE);
-//            }
-
             String payload = msg.payload;
             if (payload != null && payload.length() > 500) {
                 payload = payload.substring(0, 500) + "...";
             }
             messagePayload.setText(payload != null ? payload : "(пустое сообщение)");
-
-//            String client = (msg.clientId != null && !msg.clientId.isEmpty()) ? msg.clientId : "unknown";
-//            messageClientId.setText("ClientID: " + client);
         }
     }
 }

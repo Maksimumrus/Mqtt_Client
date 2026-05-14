@@ -1,7 +1,5 @@
 package com.example.mqttclient;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,12 +21,9 @@ import com.example.mqttclient.Models.Topic;
 import com.example.mqttclient.Models.TopicTreeNode;
 import com.example.mqttclient.ViewModels.SubscribedTopicsViewModel;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class TopicsFragment extends BaseTopicsFragment {
-    private RecyclerView recyclerView;
     private SearchView searchView;
     private TopicsAdapter adapter;
     private SubscribedTopicsViewModel viewModel;
@@ -43,7 +38,7 @@ public class TopicsFragment extends BaseTopicsFragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = super.onCreateView(inflater, container, savedInstanceState);
-        recyclerView = view.findViewById(R.id.recycler_view);
+        RecyclerView recyclerView = view.findViewById(R.id.recycler_view);
         searchView = view.findViewById(R.id.search_view);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -93,21 +88,21 @@ public class TopicsFragment extends BaseTopicsFragment {
         refreshList();
     }
 
-    private void loadExpandedState() {
-        SharedPreferences prefs = requireContext().getSharedPreferences("tree_state_subscribed", Context.MODE_PRIVATE);
-        Set<String> groups = prefs.getStringSet("expanded_groups", new HashSet<>());
-        Set<String> leaves = prefs.getStringSet("expanded_leaves", new HashSet<>());
-        adapter.saveExpandedState(groups, leaves);
-        adapter.initExpandedLeaves(leaves);
-    }
-
-    private void saveExpandedState() {
-        SharedPreferences prefs = requireContext().getSharedPreferences("tree_state_subscribed", Context.MODE_PRIVATE);
-        prefs.edit()
-                .putStringSet("expanded_groups", adapter.getExpandedGroups())
-                .putStringSet("expanded_leaves", adapter.getExpandedLeaves())
-                .apply();
-    }
+//    private void loadExpandedState() {
+//        SharedPreferences prefs = requireContext().getSharedPreferences("tree_state_subscribed", Context.MODE_PRIVATE);
+//        Set<String> groups = prefs.getStringSet("expanded_groups", new HashSet<>());
+//        Set<String> leaves = prefs.getStringSet("expanded_leaves", new HashSet<>());
+//        adapter.saveExpandedState(groups, leaves);
+//        adapter.initExpandedLeaves(leaves);
+//    }
+//
+//    private void saveExpandedState() {
+//        SharedPreferences prefs = requireContext().getSharedPreferences("tree_state_subscribed", Context.MODE_PRIVATE);
+//        prefs.edit()
+//                .putStringSet("expanded_groups", adapter.getExpandedGroups())
+//                .putStringSet("expanded_leaves", adapter.getExpandedLeaves())
+//                .apply();
+//    }
 
     @Override
     protected void onMqttServiceReadyExtended(MqttService service) {
@@ -129,18 +124,12 @@ public class TopicsFragment extends BaseTopicsFragment {
     }
 
     @Override
-    public void onServerChanged(String newFullUrl) {
-        TopicRepository.getInstance(requireActivity().getApplication()).setCurrentServerUrl(newFullUrl);
-        viewModel.refresh();
-    }
-
-    @Override
     protected void refreshList() {
         List<Topic> topics = TopicRepository.getInstance(requireActivity().getApplication())
                 .getSubscribedTopics().getValue();
         if (topics != null) {
             adapter.setData(topics);
-            loadExpandedState();
+//            loadExpandedState();
         }
     }
 

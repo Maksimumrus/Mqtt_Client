@@ -10,24 +10,14 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.example.mqttclient.Accessory.MqttService;
-
-/**
- * Абстрактный базовый фрагмент для отображения списков топиков (Все топики / Мои подписки).
- * Содержит общую логику:
- * - выбора/добавления/удаления серверов
- * - отображения статуса подключения
- * - работы с MQTT сервисом
- */
 public abstract class BaseTopicsFragment extends Fragment implements MainActivity.MqttServiceConsumer {
-
     protected MqttService mqttService;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(getLayoutResourceId(), container, false);
-        return view;
+        return inflater.inflate(getLayoutResourceId(), container, false);
     }
 
     protected abstract int getLayoutResourceId();
@@ -37,8 +27,6 @@ public abstract class BaseTopicsFragment extends Fragment implements MainActivit
         this.mqttService = service;
         onMqttServiceReadyExtended(service);
     }
-
-    public abstract void onServerChanged(String newFullUrl);
 
     protected abstract void onMqttServiceReadyExtended(MqttService service);
 

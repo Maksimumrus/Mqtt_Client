@@ -37,13 +37,11 @@ public class TopicDetailActivity extends AppCompatActivity {
     private static final String EXTRA_TOPIC = "topic";
 
     private String topicName;
-    private MqttService mqttService;
     private TopicRepository repository;
     private MessageAdapter messageAdapter;
     private TopicDetailViewModel viewModel;
 
-    private TextView topicNameHeader;
-    private MaterialButton btnBack, btnAdd, btnClear;
+    private MaterialButton btnAdd;
     private Chip statusValue;
     private TextView lastMessageTime;
     private RecyclerView messagesRecycler;
@@ -71,7 +69,6 @@ public class TopicDetailActivity extends AppCompatActivity {
 
         String serverUrl = getIntent().getStringExtra("server");
         if (serverUrl != null && !serverUrl.equals(MqttPrefsManager.getBrokerUrl(this))) {
-            // Переключаем сервер в репозитории и сервисе
             MqttPrefsManager.saveBrokerUrl(this, serverUrl);
             TopicRepository.getInstance(getApplication()).setCurrentServerUrl(serverUrl);
             if (MainActivity.getMqttService() != null) {
@@ -79,14 +76,12 @@ public class TopicDetailActivity extends AppCompatActivity {
             }
         }
 
-        // Инициализация ViewModel и репозитория
         repository = TopicRepository.getInstance(getApplication());
         viewModel = new ViewModelProvider(this).get(TopicDetailViewModel.class);
         viewModel.init(repository, topicName);
 
-        // Получаем MQTT сервис из MainActivity (если активность привязана)
         if (getParent() instanceof MainActivity) {
-            mqttService = ((MainActivity) getParent()).getMqttService();
+            MqttService mqttService = ((MainActivity) getParent()).getMqttService();
         } else {
             getApplication();
         }
@@ -104,10 +99,10 @@ public class TopicDetailActivity extends AppCompatActivity {
     }
 
     private void initViews() {
-        topicNameHeader = findViewById(R.id.topic_name_header);
-        btnBack = findViewById(R.id.btn_back);
+        TextView topicNameHeader = findViewById(R.id.topic_name_header);
+        MaterialButton btnBack = findViewById(R.id.btn_back);
         btnAdd = findViewById(R.id.btn_add_server);
-        btnClear = findViewById(R.id.btn_clear);
+        MaterialButton btnClear = findViewById(R.id.btn_clear);
         statusValue = findViewById(R.id.status_value);
         lastMessageTime = findViewById(R.id.last_message_time);
         messagesRecycler = findViewById(R.id.messages_recycler);
@@ -159,11 +154,9 @@ public class TopicDetailActivity extends AppCompatActivity {
             messageAdapter.setMessages(messages);
             if (messages != null && !messages.isEmpty()) {
                 messagesRecycler.scrollToPosition(0);
-                // Обновляем информацию о топике по последнему сообщению
                 MessageEntity lastMsg = messages.get(0);
-//                updateTopicInfoFromMessage(lastMsg);
+                updateTopicInfoFromMessage(lastMsg);
             } else {
-                // Сообщений нет – сбрасываем статус
                 statusValue.setText("Неактивен");
                 statusValue.setBackgroundColor(getColor(android.R.color.darker_gray));
                 lastMessageTime.setText("Последнее сообщение: нет");

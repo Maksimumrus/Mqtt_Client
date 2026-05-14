@@ -8,31 +8,14 @@ import android.content.ServiceConnection;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.text.InputType;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
-import android.widget.EditText;
-import android.widget.ImageButton;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.mqttclient.Accessory.MqttPrefsManager;
 import com.example.mqttclient.Accessory.MqttService;
-import com.example.mqttclient.Accessory.TopicRepository;
-import com.example.mqttclient.Accessory.UiUtils;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.textfield.TextInputLayout;
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private static MqttService mqttService;
@@ -40,13 +23,12 @@ public class MainActivity extends AppCompatActivity {
 
     private View ledIndicator;
     private TextView statusText;
-    private MaterialButton btnSettings;
 
     public interface MqttServiceConsumer {
         void onMqttServiceReady(MqttService service);
     }
 
-    private ServiceConnection connection = new ServiceConnection() {
+    private final ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             MqttService.LocalBinder binder = (MqttService.LocalBinder) service;
@@ -59,10 +41,6 @@ public class MainActivity extends AppCompatActivity {
                     ledIndicator.setBackgroundResource(isConnected ? R.drawable.circle_green : R.drawable.circle_red);
                 });
             });
-
-//            mqttService.setConnectionErrorListener((errorMessage, failedUrl) -> {
-//                runOnUiThread(() -> UiUtils.showError(MainActivity.this, "Ошибка: " + errorMessage));
-//            });
         }
         @Override
         public void onServiceDisconnected(ComponentName name) {
@@ -78,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
 
         ledIndicator = findViewById(R.id.led_indicator);
         statusText = findViewById(R.id.connection_status);
-        btnSettings = findViewById(R.id.btn_settings);
+        MaterialButton btnSettings = findViewById(R.id.btn_settings);
 
         btnSettings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
 

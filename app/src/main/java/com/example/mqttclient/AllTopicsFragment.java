@@ -1,7 +1,5 @@
 package com.example.mqttclient;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -27,12 +25,10 @@ import com.example.mqttclient.ViewModels.AllTopicsViewModel;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public class AllTopicsFragment extends BaseTopicsFragment {
-    private RecyclerView recyclerView;
     private SearchView searchView;
     private CircularProgressIndicator progressBar;
     private AllTopicsAdapter adapter;
@@ -49,7 +45,7 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = super.onCreateView(inflater, container, savedInstanceState);
-        recyclerView = view.findViewById(R.id.recycler_view);
+        RecyclerView recyclerView = view.findViewById(R.id.recycler_view);
         searchView = view.findViewById(R.id.search_view);
         progressBar = view.findViewById(R.id.progress_bar);
 
@@ -107,24 +103,24 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     public void onResume() {
         super.onResume();
         String current = MqttPrefsManager.getBrokerUrl(requireContext());
-        viewModel.setServerUrl(current);  // уже есть, но проверьте
+        viewModel.setServerUrl(current);
         refreshList();
     }
 
-    private void loadExpandedState() {
-        SharedPreferences prefs = getContext().getSharedPreferences("tree_state_all", Context.MODE_PRIVATE);
-        Set<String> groups = prefs.getStringSet("expanded_groups", new HashSet<>());
-        Set<String> leaves = prefs.getStringSet("expanded_leaves", new HashSet<>());
-        adapter.saveExpandedState(groups, leaves);
-    }
-
-    private void saveExpandedState() {
-        SharedPreferences prefs = getContext().getSharedPreferences("tree_state_all", Context.MODE_PRIVATE);
-        prefs.edit()
-                .putStringSet("expanded_groups", adapter.getExpandedGroups())
-                .putStringSet("expanded_leaves", adapter.getExpandedLeaves())
-                .apply();
-    }
+//    private void loadExpandedState() {
+//        SharedPreferences prefs = requireContext().getSharedPreferences("tree_state_all", Context.MODE_PRIVATE);
+//        Set<String> groups = prefs.getStringSet("expanded_groups", new HashSet<>());
+//        Set<String> leaves = prefs.getStringSet("expanded_leaves", new HashSet<>());
+//        adapter.saveExpandedState(groups, leaves);
+//    }
+//
+//    private void saveExpandedState() {
+//        SharedPreferences prefs = requireContext().getSharedPreferences("tree_state_all", Context.MODE_PRIVATE);
+//        prefs.edit()
+//                .putStringSet("expanded_groups", adapter.getExpandedGroups())
+//                .putStringSet("expanded_leaves", adapter.getExpandedLeaves())
+//                .apply();
+//    }
 
     @Override
     protected void onMqttServiceReadyExtended(MqttService service) {
@@ -144,14 +140,8 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     }
 
     @Override
-    public void onServerChanged(String newFullUrl) {
-        viewModel.setServerUrl(newFullUrl);
-        refreshSubscriptions();
-    }
-
-    @Override
     protected void refreshList() {
-        currentSubscriptions = TopicRepository.getInstance(getActivity().getApplication()).getSubscribedTopicsSet();
+        currentSubscriptions = TopicRepository.getInstance(requireActivity().getApplication()).getSubscribedTopicsSet();
         adapter.setSubscribedTopics(currentSubscriptions);
     }
 
@@ -162,7 +152,7 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     }
 
     private void refreshSubscriptions() {
-        currentSubscriptions = TopicRepository.getInstance(getActivity().getApplication()).getSubscribedTopicsSet();
+        currentSubscriptions = TopicRepository.getInstance(requireActivity().getApplication()).getSubscribedTopicsSet();
         adapter.setSubscribedTopics(currentSubscriptions);
     }
 }

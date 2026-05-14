@@ -13,51 +13,8 @@ import java.util.Set;
 public class MqttPrefsManager {
     private static final String PREF_NAME = "mqtt_prefs";
     private static final String KEY_BROKER_URL = "broker_url";
-    private static final String KEY_SUBSCRIBED_TOPICS = "subscribed_topics";
     private static final String KEY_NOTIFICATIONS_ENABLED = "notifications_enabled";
     public static final String DEFAULT_BROKER = "tcp://broker.emqx.io:1883";
-
-    private static String normalizeUrl(String url) {
-        if (url == null) return null;
-        url = url.trim();
-        // Удаляем возможный префикс mqtt://
-        if (url.startsWith("mqtt://")) {
-            url = url.substring(7);
-        }
-        // Добавляем tcp:// если нет схемы
-        if (!url.startsWith("tcp://") && !url.startsWith("ssl://")) {
-            url = "tcp://" + url;
-        }
-        // Исправляем лишние слеши
-        url = url.replace("tcp:///", "tcp://");
-        url = url.replace("ssl:///", "ssl://");
-        return url;
-    }
-
-    public static List<String> getDisplayServerList(Context context) {
-        List<String> fullList = getServerList(context);
-        List<String> displayList = new ArrayList<>();
-        for (String url : fullList) {
-            displayList.add(displayUrl(url));   // убираем схему
-        }
-        return displayList;
-    }
-
-    // Преобразование полного URL в отображаемый (без tcp://)
-    public static String displayUrl(String fullUrl) {
-        if (fullUrl == null) return "";
-        String result = fullUrl;
-        if (result.startsWith("tcp://")) result = result.substring(6);
-        if (result.startsWith("ssl://")) result = result.substring(6);
-        return result;
-    }
-
-    // Преобразование отображаемого имени в полный URL
-    public static String fullUrl(String display) {
-        if (display == null) return "";
-        if (display.startsWith("tcp://") || display.startsWith("ssl://")) return display;
-        return "tcp://" + display;
-    }
 
     public static void saveBrokerUrl(Context context, String url) {
         url = normalizeUrl(url);
@@ -69,6 +26,12 @@ public class MqttPrefsManager {
         String url = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
                 .getString(KEY_BROKER_URL, DEFAULT_BROKER);
         return normalizeUrl(url);
+    }
+
+    public static void saveServerList(Context context, List<String> list) {
+        String json = new Gson().toJson(list);
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
+                .putString("server_list", json).apply();
     }
 
     public static List<String> getServerList(Context context) {
@@ -85,21 +48,6 @@ public class MqttPrefsManager {
         return new Gson().fromJson(json, type);
     }
 
-    public static void addServer(Context context, String serverUrl) {
-        List<String> list = getServerList(context);
-        serverUrl = normalizeUrl(serverUrl);
-        if (!list.contains(serverUrl)) {
-            list.add(serverUrl);
-            saveServerList(context, list);
-        }
-    }
-
-    public static void saveServerList(Context context, List<String> list) {
-        String json = new Gson().toJson(list);
-        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
-                .putString("server_list", json).apply();
-    }
-
     public static void saveServerCredentials(Context context, String serverUrl, String username, String password) {
         serverUrl = normalizeUrl(serverUrl);
         SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
@@ -109,12 +57,32 @@ public class MqttPrefsManager {
                 .apply();
     }
 
+    public static String getUsernameForServer(Context context, String serverUrl) {
+        serverUrl = normalizeUrl(serverUrl);
+        return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                .getString(serverUrl + "_user", null);
+    }
+
+    public static String getPasswordForServer(Context context, String serverUrl) {
+        serverUrl = normalizeUrl(serverUrl);
+        return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                .getString(serverUrl + "_pass", null);
+    }
+
+    public static void addServer(Context context, String serverUrl) {
+        List<String> list = getServerList(context);
+        serverUrl = normalizeUrl(serverUrl);
+        if (!list.contains(serverUrl)) {
+            list.add(serverUrl);
+            saveServerList(context, list);
+        }
+    }
+
     public static void removeServerData(Context context, String serverUrl) {
         serverUrl = normalizeUrl(serverUrl);
         SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
 
-        // Удаляем подписки, учётные данные, сам сервер из списка
         editor.remove(getSubscribedTopicsKey(serverUrl));
         editor.remove(serverUrl + "_user");
         editor.remove(serverUrl + "_pass");
@@ -133,16 +101,10 @@ public class MqttPrefsManager {
         editor.apply();
     }
 
-    public static String getUsernameForServer(Context context, String serverUrl) {
-        serverUrl = normalizeUrl(serverUrl);
-        return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-                .getString(serverUrl + "_user", null);
-    }
-
-    public static String getPasswordForServer(Context context, String serverUrl) {
-        serverUrl = normalizeUrl(serverUrl);
-        return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-                .getString(serverUrl + "_pass", null);
+    private static void saveTopicsSet(Context context, String serverUrl, Set<String> topics) {
+        String json = new Gson().toJson(topics);
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
+                .putString(getSubscribedTopicsKey(serverUrl), json).apply();
     }
 
     private static String getSubscribedTopicsKey(String serverUrl) {
@@ -169,18 +131,12 @@ public class MqttPrefsManager {
         saveTopicsSet(context, serverUrl, topics);
     }
 
-    private static void saveTopicsSet(Context context, String serverUrl, Set<String> topics) {
-        String json = new Gson().toJson(topics);
-        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
-                .putString(getSubscribedTopicsKey(serverUrl), json).apply();
-    }
-
     public static void cleanInvalidTopics(Context context, String serverUrl) {
         Set<String> topics = getSubscribedTopicsSet(context, serverUrl);
         Set<String> valid = new HashSet<>();
         for (String t : topics) {
             if (t == null || t.isEmpty()) continue;
-            if (t.contains("#") && !t.endsWith("#")) continue; // невалидный
+            if (t.contains("#") && !t.endsWith("#")) continue;
             valid.add(t);
         }
         if (valid.size() != topics.size()) {
@@ -194,8 +150,30 @@ public class MqttPrefsManager {
                 .getBoolean(KEY_NOTIFICATIONS_ENABLED, true);
     }
 
-    public static void setNotificationsEnabled(Context context, boolean enabled) {
-        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
-                .putBoolean(KEY_NOTIFICATIONS_ENABLED, enabled).apply();
+    private static String normalizeUrl(String url) {
+        if (url == null) return null;
+        url = url.trim();
+        if (url.startsWith("mqtt://")) {
+            url = url.substring(7);
+        }
+        if (!url.startsWith("tcp://") && !url.startsWith("ssl://")) {
+            url = "tcp://" + url;
+        }
+        url = url.replace("tcp:///", "tcp://");
+        url = url.replace("ssl:///", "ssl://");
+        return url;
+    }
+    public static String displayUrl(String fullUrl) {
+        if (fullUrl == null) return "";
+        String result = fullUrl;
+        if (result.startsWith("tcp://")) result = result.substring(6);
+        if (result.startsWith("ssl://")) result = result.substring(6);
+        return result;
+    }
+
+    public static String fullUrl(String display) {
+        if (display == null) return "";
+        if (display.startsWith("tcp://") || display.startsWith("ssl://")) return display;
+        return "tcp://" + display;
     }
 }

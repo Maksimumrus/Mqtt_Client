@@ -10,7 +10,6 @@ import android.os.IBinder;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
-import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.example.mqttclient.Database.AppDatabase;
@@ -73,53 +72,6 @@ public class MqttService extends Service {
         }
         return START_STICKY;
     }
-
-//    private void connect() {
-//        Log.d(TAG, "Connecting to " + brokerUrl);
-//        String host = brokerUrl.replace("tcp://", "").replace("ssl://", "");
-//        String[] parts = host.split(":");
-//        String serverHost = parts[0];
-//        int serverPort = (parts.length > 1) ? Integer.parseInt(parts[1]) : 1883;
-//
-//        client = MqttClient.builder()
-//                .useMqttVersion3()
-//                .identifier("AndroidClient_" + System.currentTimeMillis())
-//                .serverHost(serverHost)
-//                .serverPort(serverPort)
-//                .buildAsync();
-//
-//        var connectBuilder = client.connectWith()
-//                .keepAlive(20);
-//
-//        String username = MqttPrefsManager.getUsernameForServer(this, brokerUrl);
-//        String password = MqttPrefsManager.getPasswordForServer(this, brokerUrl);
-//        if (username != null && !username.isEmpty()) {
-//            connectBuilder.simpleAuth()
-//                    .username(username)
-//                    .password(password != null ? password.getBytes(StandardCharsets.UTF_8) : new byte[0])
-//                    .applySimpleAuth();
-//        }
-//
-//        notifyStatus("Подключение к " + brokerUrl + "...", false);
-//
-//        CompletableFuture<Mqtt3ConnAck> future = connectBuilder.send();
-//        future.whenComplete((connAck, throwable) -> {
-//            if (throwable != null) {
-//                Log.e(TAG, "Connection failed", throwable);
-//                notifyStatus("Ошибка: " + throwable.getMessage(), false);
-//                isConnected = false;
-//            } else {
-//                Log.d(TAG, "Connected successfully");
-//                notifyStatus("Подключено к " + brokerUrl, true);
-//                Set<String> topics = MqttPrefsManager.getSubscribedTopicsSet(MqttService.this, brokerUrl);
-//                isConnected = true;
-//                client.subscribeWith().topicFilter("#").callback(this::handleMessage).send();
-//                for (String topic : topics) {
-//                    subscribe(topic);
-//                }
-//            }
-//        });
-//    }
 
     private void connect() {
         Log.d(TAG, "Connecting to " + brokerUrl);
@@ -240,9 +192,17 @@ public class MqttService extends Service {
             statusListener.onStatusChanged(status, isConnected);
         }
     }
+    public void setConnectionStatusListener(ConnectionStatusListener listener) {
+        this.statusListener = listener;
+        if (listener != null) {
+            String status = isConnected ? "Подключено" : "Отключено";
+            listener.onStatusChanged(status, isConnected);
+        }
+    }
 
-    public LiveData<ConnectionState> getConnectionState() {
-        return connectionStateLiveData;
+    private void notifyStatus(String status, boolean connected) {
+        if (statusListener != null) statusListener.onStatusChanged(status, connected);
+        connectionStateLiveData.postValue(new ConnectionState(status, connected));
     }
 
     public void subscribe(String topic) {
@@ -349,16 +309,17 @@ public class MqttService extends Service {
         }
     }
 
+    public void setMessageListener(MessageListener listener) { this.messageListener = listener; }
+
     @Override
     public IBinder onBind(Intent intent) { return binder; }
 
     private void showNotification(String topic, String payload) {
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        // Intent для открытия детального окна
         Intent intent = new Intent(this, TopicDetailActivity.class);
         intent.putExtra("topic", topic);
-        intent.putExtra("server", brokerUrl); // передаём текущий сервер
+        intent.putExtra("server", brokerUrl);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
         PendingIntent pendingIntent = PendingIntent.getActivity(this, topic.hashCode(), intent,
@@ -381,27 +342,10 @@ public class MqttService extends Service {
     }
 
     private void createNotificationChannel() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-                    "MQTT уведомления", NotificationManager.IMPORTANCE_HIGH);
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            manager.createNotificationChannel(channel);
-        }
-    }
-
-    public void setMessageListener(MessageListener listener) { this.messageListener = listener; }
-    public void setConnectionStatusListener(ConnectionStatusListener listener) {
-        this.statusListener = listener;
-        if (listener != null) {
-            // сразу отправить текущий статус
-            String status = isConnected ? "Подключено" : "Отключено";
-            listener.onStatusChanged(status, isConnected);
-        }
-    }
-
-    private void notifyStatus(String status, boolean connected) {
-        if (statusListener != null) statusListener.onStatusChanged(status, connected);
-        connectionStateLiveData.postValue(new ConnectionState(status, connected));
+        NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
+                "MQTT уведомления", NotificationManager.IMPORTANCE_HIGH);
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        manager.createNotificationChannel(channel);
     }
 
     private boolean isPublicBroker(String brokerUrl) {

@@ -40,7 +40,4 @@ public interface AllTopicsDao {
 
     @Query("DELETE FROM all_topics WHERE serverUrl = :serverUrl")
     void deleteAllForServer(String serverUrl);
-
-    @Query("DELETE FROM all_topics WHERE serverUrl = :serverUrl AND hasRetained = 0 AND lastSeenTimestamp < :threshold")
-    void deleteTemporaryTopics(String serverUrl, long threshold);
 }

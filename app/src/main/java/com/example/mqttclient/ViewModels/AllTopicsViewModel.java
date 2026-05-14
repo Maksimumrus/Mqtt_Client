@@ -8,21 +8,16 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Transformations;
 
-import com.example.mqttclient.Accessory.TopicTreeBuilder;
-import com.example.mqttclient.Database.AllTopicsEntity;
 import com.example.mqttclient.Accessory.TopicRepository;
-import com.example.mqttclient.Database.AppDatabase;
+import com.example.mqttclient.Accessory.TopicTreeBuilder;
 import com.example.mqttclient.Models.TopicTreeNode;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class AllTopicsViewModel extends AndroidViewModel {
-    private TopicRepository repository;
+    private final TopicRepository repository;
     public MutableLiveData <String> currentServerUrl = new MutableLiveData<>();
-    private LiveData<List<TopicTreeNode>> allTopicsTree;
+    private final LiveData<List<TopicTreeNode>> allTopicsTree;
 
     public AllTopicsViewModel(Application application) {
         super(application);

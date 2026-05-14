@@ -29,7 +29,7 @@ public abstract class BaseTopicsAdapter <VH extends BaseTopicsAdapter.BaseViewHo
     public interface OnTreeNodeClickListener {
         void onLeafClick(TopicTreeNode node, Object data);
         void onGroupClick(TopicTreeNode node);
-        void onActionClick(TopicTreeNode node, Object data); // подписка/отписка/удаление
+        void onActionClick(TopicTreeNode node, Object data);
     }
 
     public void setListener(OnTreeNodeClickListener listener) {
@@ -96,39 +96,6 @@ public abstract class BaseTopicsAdapter <VH extends BaseTopicsAdapter.BaseViewHo
                 expandedGroups.add(node.fullPath);
                 autoExpandGroups(node.children);
             }
-        }
-    }
-
-    public void expandGroupsWithUnread(List<TopicTreeNode> roots) {
-        Set<String> toExpand = new HashSet<>();
-        collectGroupsWithUnread(roots, toExpand);
-        expandedGroups.addAll(toExpand);
-        rebuildFlatList();
-    }
-
-    public void expandLeavesWithUnread(List<TopicTreeNode> nodes) {
-        for (TopicTreeNode node : nodes) {
-            if (node.type == TopicTreeNode.Type.LEAF && node.hasUnread) {
-                expandedLeaves.add(node.fullPath + "_leaf");
-            } else if (node.type == TopicTreeNode.Type.GROUP) {
-                expandLeavesWithUnread(node.children);
-            }
-        }
-        rebuildFlatList();
-    }
-
-    private void collectGroupsWithUnread(List<TopicTreeNode> nodes, Set<String> out) {
-        for (TopicTreeNode node : nodes) {
-            if (node.type == TopicTreeNode.Type.GROUP && node.hasUnread) {
-                out.add(node.fullPath);
-                collectGroupsWithUnread(node.children, out);
-            }
-        }
-    }
-
-    public void expandGroup(String fullPath) {
-        if (expandedGroups.add(fullPath)) {
-            rebuildFlatList();
         }
     }
 
