@@ -35,7 +35,6 @@ public class TopicDetailActivity extends AppCompatActivity {
     private TopicDetailViewModel viewModel;
 
     private MaterialButton btnAdd;
-    private Chip statusValue;
     private TextView lastMessageTime;
     private RecyclerView messagesRecycler;
 
@@ -96,7 +95,6 @@ public class TopicDetailActivity extends AppCompatActivity {
         MaterialButton btnBack = findViewById(R.id.btn_back);
         btnAdd = findViewById(R.id.btn_add_server);
         MaterialButton btnClear = findViewById(R.id.btn_clear);
-        statusValue = findViewById(R.id.status_value);
         lastMessageTime = findViewById(R.id.last_message_time);
         messagesRecycler = findViewById(R.id.messages_recycler);
 
@@ -150,8 +148,6 @@ public class TopicDetailActivity extends AppCompatActivity {
                 MessageEntity lastMsg = messages.get(0);
                 updateTopicInfoFromMessage(lastMsg);
             } else {
-                statusValue.setText("Неактивен");
-                statusValue.setBackgroundColor(getColor(android.R.color.darker_gray));
                 lastMessageTime.setText("Последнее сообщение: нет");
             }
         });
@@ -160,8 +156,6 @@ public class TopicDetailActivity extends AppCompatActivity {
     private void updateTopicInfoFromMessage(MessageEntity msg) {
         boolean active = (msg.retained == 0) &&
                 (System.currentTimeMillis() - msg.timestamp < 5 * 60 * 1000);
-        statusValue.setText(active ? "Активен" : "Неактивен");
-        statusValue.setChipBackgroundColor(ColorStateList.valueOf(active ? getColor(android.R.color.holo_green_dark) : getColor(android.R.color.darker_gray)));
 
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.getDefault());
         lastMessageTime.setText("Последнее сообщение: " + sdf.format(new Date(msg.timestamp)));
@@ -170,7 +164,6 @@ public class TopicDetailActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        refreshStatus();
     }
 
     private void updateSubscriptionButton() {
@@ -178,29 +171,5 @@ public class TopicDetailActivity extends AppCompatActivity {
         btnAdd.setText(isSubscribed ? "Отписаться" : "Подписаться");
         btnAdd.setIcon(isSubscribed ?
                 getDrawable(R.drawable.ic_check) : getDrawable(R.drawable.ic_add));
-    }
-
-    private void refreshStatus() {
-        repository.getLastNonRetainedMessageForTopicAsync(topicName, nonRetained -> {
-            runOnUiThread(() -> {
-                if (nonRetained != null && !nonRetained.isEmpty()) {
-                    MessageEntity lastNormal = nonRetained.get(0);
-                    boolean active = (System.currentTimeMillis() - lastNormal.timestamp < 5 * 60 * 1000);
-                    statusValue.setText(active ? "Активен" : "Неактивен");
-                    statusValue.setChipBackgroundColor(ColorStateList.valueOf(active ?
-                            getColor(android.R.color.holo_green_dark) : getColor(android.R.color.darker_gray)));
-                } else {
-                    statusValue.setText("Неактивен");
-                    statusValue.setChipBackgroundColor(ColorStateList.valueOf(getColor(android.R.color.darker_gray)));
-                }
-            });
-        });
-        repository.getLastMessageForTopicAsync(topicName, any -> {
-            runOnUiThread(() -> {
-                if (any != null && !any.isEmpty()) {
-                    updateTopicInfoFromMessage(any.get(0));
-                }
-            });
-        });
     }
 }

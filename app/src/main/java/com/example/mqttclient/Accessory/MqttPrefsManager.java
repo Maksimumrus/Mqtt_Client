@@ -150,7 +150,7 @@ public class MqttPrefsManager {
                 .getBoolean(KEY_NOTIFICATIONS_ENABLED, true);
     }
 
-    private static String normalizeUrl(String url) {
+    public static String normalizeUrl(String url) {
         if (url == null) return null;
         url = url.trim();
         if (url.startsWith("mqtt://")) {
