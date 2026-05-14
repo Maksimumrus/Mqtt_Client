@@ -10,6 +10,8 @@ import android.os.IBinder;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
 
 import com.example.mqttclient.Database.AppDatabase;
 import com.example.mqttclient.Database.MessageEntity;
@@ -38,6 +40,7 @@ public class MqttService extends Service {
     private ConnectionStatusListener statusListener;
     private ConnectionErrorListener errorListener;
     private boolean isConnected;
+    private final MutableLiveData<ConnectionState> connectionStateLiveData = new MutableLiveData<>();
 
     public interface MessageListener {
         void onMessageArrived(String topic, String payload, long timestamp, boolean retained);
@@ -175,16 +178,17 @@ public class MqttService extends Service {
         future.whenComplete((connAck, throwable) -> {
             if (throwable != null) {
                 Log.e(TAG, "Connection failed", throwable);
-                notifyStatus("Ошибка: " + throwable.getMessage(), false);
+                notifyStatus("Отключено", false);
                 isConnected = false;
                 if (errorListener != null) {
                     errorListener.onConnectionError(throwable.getMessage(), brokerUrl);
                 }
             } else {
                 Log.d(TAG, "Connected successfully");
-                notifyStatus("Подключено к " + brokerUrl, true);
+                notifyStatus("Подключено", true);
                 Set<String> topics = MqttPrefsManager.getSubscribedTopicsSet(MqttService.this, brokerUrl);
                 isConnected = true;
+                applySubscriptions();
                 client.subscribeWith().topicFilter("#").callback(this::handleMessage).send();
                 TopicRepository.getInstance(getApplication()).refreshAllDataForCurrentServer();
             }
@@ -196,7 +200,8 @@ public class MqttService extends Service {
 
         brokerUrl = newUrl;
         MqttPrefsManager.saveBrokerUrl(this, brokerUrl);
-        notifyStatus("Переключение на " + brokerUrl + "...", false);
+        TopicRepository.getInstance(getApplication()).setCurrentServerUrl(brokerUrl);
+        notifyStatus("Переключение...", false);
 
         if (client != null && isConnected) {
             // Отключаемся асинхронно, затем подключаемся снова
@@ -232,9 +237,13 @@ public class MqttService extends Service {
 
     public void getCurrentStatus() {
         if (statusListener != null) {
-            String status = isConnected ? "Подключено к " + brokerUrl : "Отключено";
+            String status = isConnected ? "Подключено " : "Отключено";
             statusListener.onStatusChanged(status, isConnected);
         }
+    }
+
+    public LiveData<ConnectionState> getConnectionState() {
+        return connectionStateLiveData;
     }
 
     public void subscribe(String topic) {
@@ -258,10 +267,22 @@ public class MqttService extends Service {
         }
 
         MqttPrefsManager.addSubscribedTopic(this, brokerUrl, topic);
+        if (client != null && isConnected) {
+            client.subscribeWith().topicFilter(topic).send()
+                    .whenComplete((subAck, throwable) -> {
+                        if (throwable != null) Log.e(TAG, "Subscribe error", throwable);
+                    });
+        }
     }
 
     public void unsubscribe(String topic) {
         MqttPrefsManager.removeSubscribedTopic(this, brokerUrl, topic);
+        if (client != null && isConnected) {
+            client.unsubscribeWith().topicFilter(topic).send()
+                    .whenComplete((unsubAck, throwable) -> {
+                        if (throwable != null) Log.e(TAG, "Unsubscribe error", throwable);
+                    });
+        }
     }
 
     private void handleMessage(Mqtt3Publish publish) {
@@ -274,7 +295,6 @@ public class MqttService extends Service {
         List<MessageEntity> dup = AppDatabase.getInstance(this).messageDao()
                 .findDuplicate(topic, brokerUrl, payload, retained ? 1 : 0, timestamp - withinMs);
         if (!dup.isEmpty()) {
-            Log.d(TAG, "Duplicate message ignored: " + topic);
             return;
         }
 
@@ -341,10 +361,9 @@ public class MqttService extends Service {
         PendingIntent pendingIntent = PendingIntent.getActivity(this, topic.hashCode(), intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        String displayServer = brokerUrl.replace("tcp://", ""); // убираем префикс
         String shortPayload = payload.length() > 100 ? payload.substring(0,100) : payload;
-        String content = String.format("[%s] %s", displayServer, shortPayload);
-        String bigTextContent = String.format("Сервер: %s\nСообщение:\n%s", displayServer, payload);
+        String content = String.format("%s", shortPayload);
+        String bigTextContent = String.format("Сообщение:\n%s", payload);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
@@ -372,18 +391,41 @@ public class MqttService extends Service {
         this.statusListener = listener;
         if (listener != null) {
             // сразу отправить текущий статус
-            String status = isConnected ? "Подключено к " + brokerUrl : "Отключено";
+            String status = isConnected ? "Подключено" : "Отключено";
             listener.onStatusChanged(status, isConnected);
         }
     }
 
     private void notifyStatus(String status, boolean connected) {
         if (statusListener != null) statusListener.onStatusChanged(status, connected);
+        connectionStateLiveData.postValue(new ConnectionState(status, connected));
     }
 
     private boolean isPublicBroker(String brokerUrl) {
         return brokerUrl.contains("broker.emqx.io") ||
                 brokerUrl.contains("test.mosquitto.org") ||
                 brokerUrl.contains("broker.hivemq.com");
+    }
+
+    private void applySubscriptions() {
+        if (client == null || !isConnected) return;
+        Set<String> topics = MqttPrefsManager.getSubscribedTopicsSet(this, brokerUrl);
+        for (String topic : topics) {
+            client.subscribeWith()
+                    .topicFilter(topic)
+                    .send()
+                    .whenComplete((subAck, throwable) -> {
+                        if (throwable != null) Log.e(TAG, "Subscribe failed: " + topic, throwable);
+                    });
+        }
+    }
+
+    public static class ConnectionState {
+        public final String statusText;
+        public final boolean isConnected;
+        public ConnectionState(String statusText, boolean isConnected) {
+            this.statusText = statusText;
+            this.isConnected = isConnected;
+        }
     }
 }

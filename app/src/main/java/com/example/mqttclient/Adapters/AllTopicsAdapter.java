@@ -83,7 +83,6 @@ public class AllTopicsAdapter extends BaseTopicsAdapter<AllTopicsAdapter.ViewHol
         public void bind(TopicTreeNode node, int position) {
             topicName.setText(node.displayName);
 
-            // Стрелка
             if (node.type == TopicTreeNode.Type.GROUP) {
                 btnExpand.setVisibility(View.VISIBLE);
                 btnExpand.setImageResource(expandedGroups.contains(node.fullPath) ? R.drawable.ic_arrow_down : R.drawable.ic_arrow_right);
@@ -91,7 +90,6 @@ public class AllTopicsAdapter extends BaseTopicsAdapter<AllTopicsAdapter.ViewHol
                 btnExpand.setOnClickListener(toggleListener);
                 itemView.setOnClickListener(toggleListener);
                 btnAction.setVisibility(View.GONE);
-                unreadIndicator.setVisibility(node.hasUnread ? View.VISIBLE : View.GONE);
                 expandedContent.setVisibility(View.GONE);
             } else {
                 AllTopicsEntity entity = (AllTopicsEntity) node.data;
@@ -99,8 +97,6 @@ public class AllTopicsAdapter extends BaseTopicsAdapter<AllTopicsAdapter.ViewHol
                 boolean isLeafExpanded = expandedLeaves.contains(node.fullPath + "_leaf");
                 btnExpand.setImageResource(isLeafExpanded ? R.drawable.ic_arrow_down : R.drawable.ic_arrow_right);
                 btnExpand.setOnClickListener(v -> toggleLeaf(node, position));
-
-                unreadIndicator.setVisibility(entity.isHasUnread() ? View.VISIBLE : View.GONE);
 
                 boolean isSubscribed = subscribedTopics != null && subscribedTopics.contains(entity.topicName);
                 btnAction.setImageResource(isSubscribed ? R.drawable.ic_check : R.drawable.ic_add);
@@ -119,7 +115,6 @@ public class AllTopicsAdapter extends BaseTopicsAdapter<AllTopicsAdapter.ViewHol
                     } else {
                         timestamp.setText("");
                     }
-                    statusText.setVisibility(View.GONE);
                 }
 
                 itemView.setOnClickListener(v -> {

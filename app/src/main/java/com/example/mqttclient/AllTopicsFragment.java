@@ -24,6 +24,7 @@ import com.example.mqttclient.Models.TopicTreeNode;
 import com.example.mqttclient.ViewModels.AllTopicsViewModel;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -57,11 +58,10 @@ public class AllTopicsFragment extends BaseTopicsFragment {
         viewModel = new ViewModelProvider(this).get(AllTopicsViewModel.class);
         viewModel.getAllTopicsTree().observe(getViewLifecycleOwner(), roots -> {
             progressBar.setVisibility(View.GONE);
-            if (roots != null && !roots.isEmpty()) {
-                adapter.setTreeRoots(roots);
+            List<TopicTreeNode> finalRoots = roots != null ? roots : new ArrayList<>();
+            adapter.setTreeRoots(finalRoots);
+            if (!finalRoots.isEmpty()) {
                 loadExpandedState();
-                adapter.expandGroupsWithUnread(roots);
-                adapter.expandLeavesWithUnread(roots);
             }
         });
 
@@ -103,11 +103,6 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     @Override
     public void onResume() {
         super.onResume();
-        // Принудительно перезапускаем LiveData, чтобы подхватить последние hasUnread
-        String current = viewModel.currentServerUrl.getValue();
-        if (current != null) {
-            viewModel.setServerUrl(current);
-        }
         refreshList();
     }
 
@@ -144,10 +139,7 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     }
 
     @Override
-    public void onServerChanged(String newFullUrl) {
-        viewModel.setServerUrl(newFullUrl);
-        refreshSubscriptions();
-    }
+    public void onServerChanged(String newFullUrl) {}
 
     @Override
     protected void refreshList() {
@@ -164,16 +156,5 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     private void refreshSubscriptions() {
         currentSubscriptions = TopicRepository.getInstance(getActivity().getApplication()).getSubscribedTopicsSet();
         adapter.setSubscribedTopics(currentSubscriptions);
-    }
-
-    private void expandUnreadGroups(List<TopicTreeNode> nodes) {
-        for (TopicTreeNode node : nodes) {
-            if (node.type == TopicTreeNode.Type.GROUP && node.hasUnread) {
-                adapter.expandGroup(node.fullPath);
-                expandUnreadGroups(node.children);
-            } else if (node.type == TopicTreeNode.Type.GROUP) {
-                expandUnreadGroups(node.children);
-            }
-        }
     }
 }

@@ -16,13 +16,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-public class SubscribedTopicsAdapter extends BaseTopicsAdapter<SubscribedTopicsAdapter.ViewHolder> {
+public class TopicsAdapter extends BaseTopicsAdapter<TopicsAdapter.ViewHolder> {
 
     private Set<String> subscribedTopics;
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM HH:mm", Locale.getDefault());
     private List<TopicTreeNode> originalRoots;
     private String filterQuery = "";
-    private int statusFilter = 0;
 
     @Override
     public void setTreeRoots(List<TopicTreeNode> roots) {
@@ -38,9 +37,8 @@ public class SubscribedTopicsAdapter extends BaseTopicsAdapter<SubscribedTopicsA
         super.setTreeRoots(originalRoots);
     }
 
-    public void setFilter(String query, int status) {
+    public void setFilter(String query) {
         this.filterQuery = (query == null) ? "" : query.toLowerCase();
-        this.statusFilter = status;
         applyFilters();
     }
 
@@ -79,18 +77,9 @@ public class SubscribedTopicsAdapter extends BaseTopicsAdapter<SubscribedTopicsA
         for (TopicTreeNode node : nodes) {
             if (node.type == TopicTreeNode.Type.LEAF) {
                 Topic topic = (Topic) node.data;
-                boolean matches = true;
-                if (!filterQuery.isEmpty()) {
-                    boolean matchName = topic.getName().toLowerCase().contains(filterQuery);
-                    boolean matchMsg = topic.getLastMessage() != null && topic.getLastMessage().toLowerCase().contains(filterQuery);
-                    matches = matchName || matchMsg;
+                if (topic.getName().toLowerCase().contains(filterQuery)) {
+                    result.add(node);
                 }
-                if (matches && statusFilter != 0) {
-                    boolean active = topic.isActive();
-                    if (statusFilter == 1 && !active) matches = false;
-                    if (statusFilter == 2 && active) matches = false;
-                }
-                if (matches) result.add(node);
             } else {
                 List<TopicTreeNode> filteredChildren = filterTree(node.children);
                 if (!filteredChildren.isEmpty()) {
@@ -151,12 +140,6 @@ public class SubscribedTopicsAdapter extends BaseTopicsAdapter<SubscribedTopicsA
                     } else {
                         timestamp.setText("");
                     }
-                    boolean active = topic.isActive();
-                    statusText.setText(active ? "Активен" : "Неактивен");
-                    statusText.setTextColor(active ?
-                            ContextCompat.getColor(itemView.getContext(), R.color.green) :
-                            ContextCompat.getColor(itemView.getContext(), R.color.red));
-                    statusText.setVisibility(View.VISIBLE);
                 }
 
                 itemView.setOnClickListener(v -> {

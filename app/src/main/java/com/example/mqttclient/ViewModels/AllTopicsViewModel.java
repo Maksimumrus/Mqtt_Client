@@ -20,27 +20,15 @@ import java.util.concurrent.Executors;
 
 public class AllTopicsViewModel extends AndroidViewModel {
     private TopicRepository repository;
-    public MutableLiveData <String> currentServerUrl = new MutableLiveData<>();
     private LiveData<List<TopicTreeNode>> allTopicsTree;
-    private Application app;
-    private ExecutorService executor = Executors.newSingleThreadExecutor();
 
     public AllTopicsViewModel(Application application) {
         super(application);
         repository = TopicRepository.getInstance(application);
-        currentServerUrl.setValue(repository.getCurrentServerUrl());
-
-        allTopicsTree = Transformations.switchMap(currentServerUrl, serverUrl ->
+        allTopicsTree = Transformations.switchMap(repository.getCurrentServerUrlLive(), serverUrl ->
                 Transformations.map(repository.getAllTopicsForServer(serverUrl), entities ->
                         TopicTreeBuilder.buildTree(entities, true)
                 ));
-    }
-
-    public void setServerUrl(String serverUrl) {
-        if (!serverUrl.equals(currentServerUrl.getValue())) {
-            currentServerUrl.setValue(serverUrl);
-            repository.setCurrentServerUrl(serverUrl);
-        }
     }
 
     public LiveData<List<TopicTreeNode>> getAllTopicsTree() {
@@ -56,7 +44,7 @@ public class AllTopicsViewModel extends AndroidViewModel {
     }
 
     public void cleanTemporaryTopics(long olderThanMillis) {
-        String serverUrl = currentServerUrl.getValue();
+        String serverUrl = repository.getCurrentServerUrl();
         if (serverUrl != null) {
             repository.cleanTemporaryTopics(olderThanMillis);
         }

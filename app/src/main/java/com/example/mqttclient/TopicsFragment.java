@@ -2,17 +2,14 @@ package com.example.mqttclient;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
 import android.widget.SearchView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -21,30 +18,24 @@ import com.example.mqttclient.Accessory.MqttService;
 import com.example.mqttclient.Accessory.TopicRepository;
 import com.example.mqttclient.Accessory.UiUtils;
 import com.example.mqttclient.Adapters.BaseTopicsAdapter;
-import com.example.mqttclient.Adapters.SubscribedTopicsAdapter;
+import com.example.mqttclient.Adapters.TopicsAdapter;
 import com.example.mqttclient.Models.Topic;
 import com.example.mqttclient.Models.TopicTreeNode;
 import com.example.mqttclient.ViewModels.SubscribedTopicsViewModel;
-import com.google.android.material.chip.Chip;
-import com.google.android.material.chip.ChipGroup;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class SubscribedTopicsFragment extends BaseTopicsFragment {
+public class TopicsFragment extends BaseTopicsFragment {
     private RecyclerView recyclerView;
     private SearchView searchView;
-    private ChipGroup chipStatusFilter;
-    private FloatingActionButton fabAddTopics;
-    private SubscribedTopicsAdapter adapter;
+    private TopicsAdapter adapter;
     private SubscribedTopicsViewModel viewModel;
 
     @Override
     protected int getLayoutResourceId() {
-        return R.layout.fragment_subscribed_topics;
+        return R.layout.fragment_topics;
     }
 
     @Nullable
@@ -54,11 +45,9 @@ public class SubscribedTopicsFragment extends BaseTopicsFragment {
         View view = super.onCreateView(inflater, container, savedInstanceState);
         recyclerView = view.findViewById(R.id.recycler_view);
         searchView = view.findViewById(R.id.search_view);
-        chipStatusFilter = view.findViewById(R.id.chip_status_filter);
-        fabAddTopics = view.findViewById(R.id.fab_add_topic);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        adapter = new SubscribedTopicsAdapter();
+        adapter = new TopicsAdapter();
         recyclerView.setAdapter(adapter);
 
         viewModel = new ViewModelProvider(this).get(SubscribedTopicsViewModel.class);
@@ -92,28 +81,16 @@ public class SubscribedTopicsFragment extends BaseTopicsFragment {
             @Override public boolean onQueryTextChange(String newText) { applyFilters(); return true; }
         });
 
-        chipStatusFilter.setOnCheckedStateChangeListener((group, checkedIds) -> {
-            if (checkedIds.isEmpty()) return;
-            int checkedId = checkedIds.get(0);
-            for (int i = 0; i < group.getChildCount(); i++) {
-                Chip chip = (Chip) group.getChildAt(i);
-                if (chip.getId() == checkedId) {
-                    chip.setChipBackgroundColor(ColorStateList.valueOf(
-                            ContextCompat.getColor(requireContext(), R.color.primary)));
-                    chip.setTextColor(ContextCompat.getColor(requireContext(), R.color.white));
-                } else {
-                    chip.setChipBackgroundColor(ColorStateList.valueOf(
-                            ContextCompat.getColor(requireContext(), R.color.surface)));
-                    chip.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_primary));
-                }
-            }
-            applyFilters();
-        });
-        chipStatusFilter.check(R.id.chip_all);
-
-        fabAddTopics.setOnClickListener(v -> showAddTopicDialog());
-
         return view;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        String currentServer = TopicRepository.getInstance(requireActivity().getApplication()).getCurrentServerUrl();
+        TopicRepository.getInstance(requireActivity().getApplication()).setCurrentServerUrl(currentServer);
+        viewModel.refresh();
+        refreshList();
     }
 
     private void loadExpandedState() {
@@ -170,28 +147,6 @@ public class SubscribedTopicsFragment extends BaseTopicsFragment {
     @Override
     protected void applyFilters() {
         String query = searchView.getQuery() != null ? searchView.getQuery().toString() : "";
-        int statusFilter = 0;
-        int checkedId = chipStatusFilter.getCheckedChipId();
-        if (checkedId == R.id.chip_active) statusFilter = 1;
-        else if (checkedId == R.id.chip_inactive) statusFilter = 2;
-        adapter.setFilter(query, statusFilter);
-    }
-
-    private void showAddTopicDialog() {
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(getContext());
-        builder.setTitle("Подписаться на топик");
-        final EditText input = new EditText(getContext());
-        input.setHint("например, sensor/temperature");
-        builder.setView(input);
-        builder.setPositiveButton("Подписаться", (dialog, which) -> {
-            String topic = input.getText().toString().trim();
-            if (!topic.isEmpty()) {
-                if (mqttService != null) mqttService.subscribe(topic);
-                viewModel.subscribe(topic);
-                UiUtils.showToast(getContext(), "Подписка на " + topic);
-            }
-        });
-        builder.setNegativeButton("Отмена", null);
-        builder.show();
+        adapter.setFilter(query);
     }
 }

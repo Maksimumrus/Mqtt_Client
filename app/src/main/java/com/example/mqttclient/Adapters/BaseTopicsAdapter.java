@@ -164,7 +164,7 @@ public abstract class BaseTopicsAdapter <VH extends BaseTopicsAdapter.BaseViewHo
         public ImageButton btnAction;
         public ImageView unreadIndicator;
         public View expandedContent;
-        public TextView lastMessageExpanded, timestamp, statusText;
+        public TextView lastMessageExpanded, timestamp;
 
         public BaseViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -175,7 +175,6 @@ public abstract class BaseTopicsAdapter <VH extends BaseTopicsAdapter.BaseViewHo
             expandedContent = itemView.findViewById(R.id.expanded_content);
             lastMessageExpanded = itemView.findViewById(R.id.last_message_expanded);
             timestamp = itemView.findViewById(R.id.timestamp);
-            statusText = itemView.findViewById(R.id.status);
         }
 
         public abstract void bind(TopicTreeNode node, int position);

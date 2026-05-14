@@ -31,6 +31,7 @@ public class TopicRepository {
     private Set<String> subscribedTopics = new HashSet<>();
     private String currentServerUrl;
     private ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final MutableLiveData<String> currentServerUrlLive = new MutableLiveData<>();
 
     private TopicRepository(Application app) {
         this.app = app;
@@ -51,9 +52,15 @@ public class TopicRepository {
     public void setCurrentServerUrl(String serverUrl) {
         if (serverUrl.equals(currentServerUrl)) return;
         currentServerUrl = serverUrl;
+        currentServerUrlLive.setValue(serverUrl);
+        currentServerUrlLive.setValue(currentServerUrl);
         loadSubscribedTopics();
         updateSubscribedList();
         topicMap.clear();
+    }
+
+    public LiveData<String> getCurrentServerUrlLive() {
+        return currentServerUrlLive;
     }
 
     private void loadSubscribedTopics() {
