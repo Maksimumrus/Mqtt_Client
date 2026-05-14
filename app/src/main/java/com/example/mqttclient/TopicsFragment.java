@@ -54,7 +54,7 @@ public class TopicsFragment extends BaseTopicsFragment {
         viewModel.init(TopicRepository.getInstance(requireActivity().getApplication()));
         viewModel.getSubscribedTopics().observe(getViewLifecycleOwner(), topics -> {
             adapter.setData(topics);
-            loadExpandedState();
+//            loadExpandedState();
         });
 
         adapter.setListener(new BaseTopicsAdapter.OnTreeNodeClickListener() {
@@ -65,7 +65,7 @@ public class TopicsFragment extends BaseTopicsFragment {
             }
             @Override
             public void onGroupClick(TopicTreeNode node) {
-                saveExpandedState();
+//                saveExpandedState();
             }
             @Override
             public void onActionClick(TopicTreeNode node, Object data) {

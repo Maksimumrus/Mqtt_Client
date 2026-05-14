@@ -60,9 +60,9 @@ public class MainActivity extends AppCompatActivity {
                 });
             });
 
-            mqttService.setConnectionErrorListener((errorMessage, failedUrl) -> {
-                runOnUiThread(() -> UiUtils.showError(MainActivity.this, "Ошибка: " + errorMessage));
-            });
+//            mqttService.setConnectionErrorListener((errorMessage, failedUrl) -> {
+//                runOnUiThread(() -> UiUtils.showError(MainActivity.this, "Ошибка: " + errorMessage));
+//            });
         }
         @Override
         public void onServiceDisconnected(ComponentName name) {
@@ -80,6 +80,8 @@ public class MainActivity extends AppCompatActivity {
         statusText = findViewById(R.id.connection_status);
         btnSettings = findViewById(R.id.btn_settings);
 
+        btnSettings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
+
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, new TopicsFragment())
@@ -90,19 +92,31 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(this, MqttService.class);
             intent.setAction(MqttService.ACTION_CONNECT);
             startService(intent);
-            bindService(intent, connection, Context.BIND_AUTO_CREATE);
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 100);
         }
+    }
 
-        btnSettings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
+    @Override
+    protected void onStart() {
+        super.onStart();
+        Intent intent = new Intent(this, MqttService.class);
+        bindService(intent, connection, Context.BIND_AUTO_CREATE);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (bound) {
+            unbindService(connection);
+            bound = false;
+        }
     }
 
     @Override
     protected void onDestroy() {
-        if (bound) unbindService(connection);
         super.onDestroy();
     }
 

@@ -11,11 +11,13 @@ import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.example.mqttclient.Accessory.MqttPrefsManager;
@@ -23,6 +25,7 @@ import com.example.mqttclient.Accessory.MqttService;
 import com.example.mqttclient.Accessory.TopicRepository;
 import com.example.mqttclient.Accessory.UiUtils;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -33,7 +36,7 @@ import java.util.List;
 
 public class ServerSettingsFragment extends Fragment {
 
-    private AutoCompleteTextView serverSpinner;
+    private Spinner serverSpinner;
     private TextInputEditText editHost, editPort, editUsername, editPassword;
     private MaterialButton btnAdd, btnUpdate, btnDelete, btnReconnect;
     private TextView currentServerStatus;
@@ -44,6 +47,7 @@ public class ServerSettingsFragment extends Fragment {
     private ArrayAdapter<String> spinnerAdapter;
 
     private MqttService.ConnectionStatusListener statusListener;
+    private MqttService.ConnectionErrorListener errorListener;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
@@ -62,20 +66,12 @@ public class ServerSettingsFragment extends Fragment {
         currentServerStatus = view.findViewById(R.id.current_server_status);
         ledIndicator = view.findViewById(R.id.led_indicator);
 
-        setupSpinnerListeners();
-        updateServerList();
-
-        serverSpinner.setOnItemClickListener((parent, v, position, id) -> {
-            String selectedDisplay = displayServerList.get(position);
-            String selectedFull = MqttPrefsManager.fullUrl(selectedDisplay);
-            fillFieldsFromServer(selectedFull);
-        });
+        setupSpinner();
 
         btnAdd.setOnClickListener(v -> addServer());
         btnUpdate.setOnClickListener(v -> updateSelectedServer());
         btnDelete.setOnClickListener(v -> deleteSelectedServer());
 
-        // Переподключение
         btnReconnect.setOnClickListener(v -> {
             MqttService service = MainActivity.getMqttService();
             if (service != null) {
@@ -85,18 +81,7 @@ public class ServerSettingsFragment extends Fragment {
             }
         });
 
-        // Обновление статуса подключения через слушатель
-        MqttService service = MainActivity.getMqttService();
-        if (service != null) {
-            service.setConnectionStatusListener((status, isConnected) -> {
-                requireActivity().runOnUiThread(() -> {
-                    ledIndicator.setBackgroundResource(isConnected ? R.drawable.circle_green : R.drawable.circle_red);
-                    currentServerStatus.setText(isConnected ? "Сервер: " + MqttPrefsManager.displayUrl(MqttPrefsManager.getBrokerUrl(requireContext())) : "Отключено");
-                });
-            });
-            service.getCurrentStatus();
-        }
-
+        setupConnectionStatusListener();
         return view;
     }
 
@@ -113,6 +98,7 @@ public class ServerSettingsFragment extends Fragment {
         MqttService service = MainActivity.getMqttService();
         if (service != null && statusListener != null) {
             service.setConnectionStatusListener(null);
+            service.setConnectionErrorListener(null);
         }
     }
 
@@ -129,82 +115,102 @@ public class ServerSettingsFragment extends Fragment {
             };
             service.setConnectionStatusListener(statusListener);
             service.getCurrentStatus();
+
+            errorListener = (errorMessage, failedUrl) -> {
+                if (isAdded() && getActivity() != null) {
+                    requireActivity().runOnUiThread(() -> {
+                        UiUtils.showError(requireContext(), "Ошибка сервера: " + errorMessage);
+                    });
+                }
+            };
+            service.setConnectionErrorListener(errorListener);
         }
     }
 
     private void setupSpinner() {
         fullServerList = MqttPrefsManager.getServerList(requireContext());
-        displayServerList.clear();
-        for (String url : fullServerList) {
-            displayServerList.add(MqttPrefsManager.displayUrl(url));
-        }
-        spinnerAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, displayServerList);
+        updateDisplayServerList();
+        spinnerAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, displayServerList);
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         serverSpinner.setAdapter(spinnerAdapter);
-        serverSpinner.setThreshold(1);
-        serverSpinner.setOnClickListener(v -> serverSpinner.showDropDown());
-        serverSpinner.setOnItemClickListener((parent, view, position, id) -> {
-            String selectedDisplay = displayServerList.get(position);
-            String selectedFull = MqttPrefsManager.fullUrl(selectedDisplay);
-//            String currentFull = MqttPrefsManager.getBrokerUrl(requireContext());
-            applyServerChange(selectedFull);
-            UiUtils.showToast(getContext(), "Переключено на " + selectedDisplay);
-            fillFieldsFromServer(selectedFull);
+
+        serverSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position >= 0 && position < displayServerList.size()) {
+                    String selectedDisplay = displayServerList.get(position);
+                    String selectedFull = MqttPrefsManager.fullUrl(selectedDisplay);
+                    switchToServer(selectedFull);
+                }
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        serverSpinner.setOnLongClickListener(v -> {
+            Object selectedItem = serverSpinner.getSelectedItem();
+            if (selectedItem != null) {
+                String selectedDisplay = selectedItem.toString();
+                String selectedFull = MqttPrefsManager.fullUrl(selectedDisplay);
+                fillFieldsFromServer(selectedFull);
+                return true;
+            }
+            return false;
         });
 
         String currentFull = MqttPrefsManager.getBrokerUrl(requireContext());
-        serverSpinner.setText(MqttPrefsManager.displayUrl(currentFull), false);
-        fillFieldsFromServer(currentFull);
+        int currentPos = displayServerList.indexOf(MqttPrefsManager.displayUrl(currentFull));
+        if (currentPos >= 0) serverSpinner.setSelection(currentPos);
     }
 
-    private void fillFieldsFromServer(String fullUrl) {
-        try {
-            URI uri = new URI(fullUrl);
-            String host = uri.getHost();
-            int port = uri.getPort();
-            editHost.setText(host != null ? host : "");
-            editPort.setText(port != -1 ? String.valueOf(port) : "1883");
-        } catch (URISyntaxException e) {
-            editHost.setText(MqttPrefsManager.displayUrl(fullUrl));
-            editPort.setText("1883");
-        }
-        String username = MqttPrefsManager.getUsernameForServer(requireContext(), fullUrl);
-        String password = MqttPrefsManager.getPasswordForServer(requireContext(), fullUrl);
-        editUsername.setText(username != null ? username : "");
-        editPassword.setText(password != null ? password : "");
-    }
-
-    private void setupSpinnerListeners() {
-        serverSpinner.setOnClickListener(v -> serverSpinner.showDropDown());
-        serverSpinner.setOnItemClickListener((parent, view, position, id) -> {
-            String selectedDisplay = displayServerList.get(position);
-            String selectedFull = MqttPrefsManager.fullUrl(selectedDisplay);
-            String currentFull = MqttPrefsManager.getBrokerUrl(requireContext());
-            if (!selectedFull.equals(currentFull)) {
-                applyServerChange(selectedFull);
-            } else {
-                fillFieldsFromServer(selectedFull);
-            }
-        });
-    }
-
-    private void updateServerList() {
-        fullServerList = MqttPrefsManager.getServerList(requireContext());
+    private void updateDisplayServerList() {
         displayServerList.clear();
         for (String url : fullServerList) {
             displayServerList.add(MqttPrefsManager.displayUrl(url));
         }
-        if (spinnerAdapter == null) {
-            spinnerAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, displayServerList);
-            serverSpinner.setAdapter(spinnerAdapter);
-        } else {
-            spinnerAdapter.clear();
-            spinnerAdapter.addAll(displayServerList);
-            spinnerAdapter.notifyDataSetChanged();
-        }
-        serverSpinner.setThreshold(1);
+    }
+
+    private void switchToServer(String fullUrl) {
+        String current = MqttPrefsManager.getBrokerUrl(requireContext());
+        if (fullUrl.equals(current)) return;
+        applyServerChange(fullUrl);
+        clearFields();
+    }
+
+    private void refreshServerList() {
+        fullServerList = MqttPrefsManager.getServerList(requireContext());
+        updateDisplayServerList();
+        spinnerAdapter.clear();
+        spinnerAdapter.addAll(displayServerList);
+        spinnerAdapter.notifyDataSetChanged();
         String currentFull = MqttPrefsManager.getBrokerUrl(requireContext());
-        serverSpinner.setText(MqttPrefsManager.displayUrl(currentFull), false);
-        fillFieldsFromServer(currentFull);
+        String currentDisplay = MqttPrefsManager.displayUrl(currentFull);
+        int currentPos = displayServerList.indexOf(currentDisplay);
+        if (currentPos >= 0) {
+            serverSpinner.setSelection(currentPos);
+        } else if (!displayServerList.isEmpty()) {
+            serverSpinner.setSelection(0);
+            String newCurrentFull = MqttPrefsManager.fullUrl(displayServerList.get(0));
+            MqttPrefsManager.saveBrokerUrl(requireContext(), newCurrentFull);
+            TopicRepository.getInstance(requireActivity().getApplication()).setCurrentServerUrl(newCurrentFull);
+            MqttService service = MainActivity.getMqttService();
+            if (service != null) service.changeBrokerUrl(newCurrentFull);
+            updateStatusDisplay();
+        }
+    }
+
+    private void applyServerChange(String newFullUrl) {
+        MqttPrefsManager.saveBrokerUrl(requireContext(), newFullUrl);
+        TopicRepository repo = TopicRepository.getInstance(requireActivity().getApplication());
+        repo.setCurrentServerUrl(newFullUrl);
+        MqttService service = MainActivity.getMqttService();
+        if (service != null) {
+            service.changeBrokerUrl(newFullUrl);
+        } else {
+            repo.refreshAllDataForCurrentServer();
+        }
+        updateStatusDisplay();
+        updateSpinnerSelection(newFullUrl);
     }
 
     private void addServer() {
@@ -234,11 +240,12 @@ public class ServerSettingsFragment extends Fragment {
     }
 
     private void updateSelectedServer() {
-        String selectedDisplay = serverSpinner.getText().toString();
-        if (selectedDisplay.isEmpty()) {
+        Object selectedItem = serverSpinner.getSelectedItem();
+        if (selectedItem == null) {
             UiUtils.showToast(getContext(), "Сначала выберите сервер из списка");
             return;
         }
+        String selectedDisplay = selectedItem.toString();
         String oldFullUrl = MqttPrefsManager.fullUrl(selectedDisplay);
         String host = editHost.getText().toString().trim();
         String portStr = editPort.getText().toString().trim();
@@ -256,8 +263,6 @@ public class ServerSettingsFragment extends Fragment {
             }
         }
         String newFullUrl = "tcp://" + host + ":" + port;
-
-        // Если изменился URL – нужно удалить старый и добавить новый
         if (!oldFullUrl.equals(newFullUrl)) {
             MqttPrefsManager.removeServerData(requireContext(), oldFullUrl);
             MqttPrefsManager.addServer(requireContext(), newFullUrl);
@@ -265,47 +270,41 @@ public class ServerSettingsFragment extends Fragment {
         String username = editUsername.getText().toString().trim();
         String password = editPassword.getText().toString().trim();
         MqttPrefsManager.saveServerCredentials(requireContext(), newFullUrl, username, password);
-
-        // Если текущий активный сервер был изменён – переключаем
+        refreshServerList();
         String current = MqttPrefsManager.getBrokerUrl(requireContext());
         if (current.equals(oldFullUrl) || current.equals(newFullUrl)) {
             applyServerChange(newFullUrl);
-        } else {
-            // Просто обновляем список
-            setupSpinner();
         }
     }
 
     private void deleteSelectedServer() {
-        String selectedDisplay = serverSpinner.getText().toString();
-        if (selectedDisplay.isEmpty()) {
+        Object selectedItem = serverSpinner.getSelectedItem();
+        if (selectedItem == null) {
             UiUtils.showToast(getContext(), "Сначала выберите сервер из списка");
             return;
         }
+        String selectedDisplay = selectedItem.toString();
         String fullUrl = MqttPrefsManager.fullUrl(selectedDisplay);
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+        new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Удалить сервер")
                 .setMessage("Удалить сервер " + selectedDisplay + " и все связанные данные?")
                 .setPositiveButton("Удалить", (d, w) -> {
                     MqttService service = MainActivity.getMqttService();
                     if (service != null) service.disconnectNow();
-
                     MqttPrefsManager.removeServerData(requireContext(), fullUrl);
                     TopicRepository.getInstance(requireActivity().getApplication())
                             .deleteAllDataForServer(fullUrl);
                     TopicRepository.getInstance(requireActivity().getApplication())
                             .clearCacheForServer(fullUrl);
-
                     String current = MqttPrefsManager.getBrokerUrl(requireContext());
                     if (fullUrl.equals(current)) {
-                        // Переключиться на первый доступный
                         List<String> servers = MqttPrefsManager.getServerList(requireContext());
                         String newCurrent = servers.isEmpty() ? MqttPrefsManager.DEFAULT_BROKER : servers.get(0);
                         MqttPrefsManager.saveBrokerUrl(requireContext(), newCurrent);
                         if (service != null) service.changeBrokerUrl(newCurrent);
                         applyServerChange(newCurrent);
                     } else {
-                        setupSpinner();
+                        refreshServerList();
                         updateStatusDisplay();
                     }
                     if (service != null) service.getCurrentStatus();
@@ -314,21 +313,36 @@ public class ServerSettingsFragment extends Fragment {
                 .show();
     }
 
-    private void applyServerChange(String newFullUrl) {
-        MqttPrefsManager.saveBrokerUrl(requireContext(), newFullUrl);
-        updateServerList();
-
-        TopicRepository repo = TopicRepository.getInstance(requireActivity().getApplication());
-        repo.setCurrentServerUrl(newFullUrl);   // <-- добавить эту строку
-
-        MqttService service = MainActivity.getMqttService();
-        if (service != null) {
-            service.changeBrokerUrl(newFullUrl);
-        } else {
-            // Если сервис ещё не готов, всё равно перезагружаем данные
-            repo.refreshAllDataForCurrentServer();
+    private void updateSpinnerSelection(String fullUrl) {
+        String display = MqttPrefsManager.displayUrl(fullUrl);
+        int pos = displayServerList.indexOf(display);
+        if (pos >= 0 && serverSpinner.getSelectedItemPosition() != pos) {
+            serverSpinner.setSelection(pos);
         }
-        updateStatusDisplay();
+    }
+
+    private void clearFields() {
+        editHost.setText("");
+        editPort.setText("");
+        editUsername.setText("");
+        editPassword.setText("");
+    }
+
+    private void fillFieldsFromServer(String fullUrl) {
+        try {
+            URI uri = new URI(fullUrl);
+            String host = uri.getHost();
+            int port = uri.getPort();
+            editHost.setText(host != null ? host : "");
+            editPort.setText(port != -1 ? String.valueOf(port) : "1883");
+        } catch (URISyntaxException e) {
+            editHost.setText(MqttPrefsManager.displayUrl(fullUrl));
+            editPort.setText("1883");
+        }
+        String username = MqttPrefsManager.getUsernameForServer(requireContext(), fullUrl);
+        String password = MqttPrefsManager.getPasswordForServer(requireContext(), fullUrl);
+        editUsername.setText(username != null ? username : "");
+        editPassword.setText(password != null ? password : "");
     }
 
     private void updateStatusDisplay() {

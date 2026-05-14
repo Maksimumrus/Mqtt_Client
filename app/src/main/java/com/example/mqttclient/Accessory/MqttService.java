@@ -186,7 +186,7 @@ public class MqttService extends Service {
             } else {
                 Log.d(TAG, "Connected successfully");
                 notifyStatus("Подключено", true);
-                Set<String> topics = MqttPrefsManager.getSubscribedTopicsSet(MqttService.this, brokerUrl);
+                TopicRepository.getInstance(getApplication()).setCurrentServerUrl(brokerUrl);
                 isConnected = true;
                 applySubscriptions();
                 client.subscribeWith().topicFilter("#").callback(this::handleMessage).send();
@@ -204,7 +204,6 @@ public class MqttService extends Service {
         notifyStatus("Переключение...", false);
 
         if (client != null && isConnected) {
-            // Отключаемся асинхронно, затем подключаемся снова
             client.disconnect().whenComplete((unused, throwable) -> {
                 if (throwable != null) {
                     Log.e(TAG, "Disconnect error", throwable);
@@ -311,6 +310,10 @@ public class MqttService extends Service {
         entity.serverUrl = brokerUrl;
         AppDatabase.getInstance(this).messageDao().insert(entity);
 
+        Log.d(TAG, "Message arrived: " + topic + " payload=" + payload);
+
+        TopicRepository.getInstance(getApplication()).addDiscoveredTopic(topic, timestamp, retained);
+
         TopicRepository repo = TopicRepository.getInstance(getApplication());
         List<MessageEntity> lastAny = AppDatabase.getInstance(this).messageDao()
                 .getLastMessage(topic, brokerUrl);
@@ -340,8 +343,8 @@ public class MqttService extends Service {
             }
         }
 
-        // 6. Уведомляем слушателя (для обновления UI в реальном времени)
         if (messageListener != null) {
+            Log.d(TAG, "Calling onTopicDiscovered for " + topic);
             messageListener.onMessageArrived(topic, payload, timestamp, retained);
         }
     }

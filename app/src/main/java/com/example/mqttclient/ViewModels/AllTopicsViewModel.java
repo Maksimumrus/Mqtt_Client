@@ -1,6 +1,7 @@
 package com.example.mqttclient.ViewModels;
 
 import android.app.Application;
+import android.util.Log;
 
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
@@ -20,15 +21,27 @@ import java.util.concurrent.Executors;
 
 public class AllTopicsViewModel extends AndroidViewModel {
     private TopicRepository repository;
+    public MutableLiveData <String> currentServerUrl = new MutableLiveData<>();
     private LiveData<List<TopicTreeNode>> allTopicsTree;
 
     public AllTopicsViewModel(Application application) {
         super(application);
         repository = TopicRepository.getInstance(application);
-        allTopicsTree = Transformations.switchMap(repository.getCurrentServerUrlLive(), serverUrl ->
-                Transformations.map(repository.getAllTopicsForServer(serverUrl), entities ->
-                        TopicTreeBuilder.buildTree(entities, true)
-                ));
+        currentServerUrl.setValue(repository.getCurrentServerUrl());
+        allTopicsTree = Transformations.switchMap(repository.getCurrentServerUrlLive(), serverUrl -> {
+            Log.d("AllTopicsViewModel", "serverUrl = " + serverUrl);
+            return Transformations.map(repository.getAllTopicsForServer(serverUrl), entities -> {
+                Log.d("AllTopicsViewModel", "entities size = " + (entities == null ? 0 : entities.size()));
+                return TopicTreeBuilder.buildTree(entities, true);
+            });
+        });
+    }
+
+    public void setServerUrl(String serverUrl) {
+        if (!serverUrl.equals(currentServerUrl.getValue())) {
+            currentServerUrl.setValue(serverUrl);
+            repository.setCurrentServerUrl(serverUrl);
+        }
     }
 
     public LiveData<List<TopicTreeNode>> getAllTopicsTree() {
@@ -41,12 +54,5 @@ public class AllTopicsViewModel extends AndroidViewModel {
 
     public void removeFromFavorites(String topicName) {
         repository.removeSubscribedTopic(topicName);
-    }
-
-    public void cleanTemporaryTopics(long olderThanMillis) {
-        String serverUrl = repository.getCurrentServerUrl();
-        if (serverUrl != null) {
-            repository.cleanTemporaryTopics(olderThanMillis);
-        }
     }
 }

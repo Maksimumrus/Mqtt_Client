@@ -1,6 +1,7 @@
 package com.example.mqttclient.Accessory;
 
 import android.app.Application;
+import android.util.Log;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -36,6 +37,7 @@ public class TopicRepository {
     private TopicRepository(Application app) {
         this.app = app;
         this.currentServerUrl = MqttPrefsManager.getBrokerUrl(app);
+        this.currentServerUrlLive.setValue(currentServerUrl);
         loadSubscribedTopics();
         updateSubscribedList();
     }
@@ -57,6 +59,7 @@ public class TopicRepository {
         loadSubscribedTopics();
         updateSubscribedList();
         topicMap.clear();
+        AppDatabase.getInstance(app).allTopicsDao().getAllTopicsForServer(currentServerUrl);
     }
 
     public LiveData<String> getCurrentServerUrlLive() {
@@ -108,7 +111,6 @@ public class TopicRepository {
             Set<String> topics = getSubscribedTopicsSet();
             for (String t : topics) {
                 Topic topic = new Topic(t);
-                // последнее сообщение (как было)
                 List<MessageEntity> lastMsgs = AppDatabase.getInstance(app).messageDao()
                         .getLastMessages(t, currentServerUrl, 1);
                 if (!lastMsgs.isEmpty()) {
@@ -151,54 +153,97 @@ public class TopicRepository {
         }
     }
 
+//    public void addDiscoveredTopic(String topic, long timestamp, boolean retained) {
+//        executor.execute(() -> {
+//            List<MessageEntity> lastMsg = AppDatabase.getInstance(app).messageDao()
+//                    .getLastMessages(topic, currentServerUrl, 1);
+//            String lastMessageText = null;
+//            long lastMsgTimestamp = 0;
+//            if (!lastMsg.isEmpty()) {
+//                MessageEntity msg = lastMsg.get(0);
+//                lastMessageText = msg.payload;
+//                lastMsgTimestamp = msg.timestamp;
+//            }
+//
+//            AllTopicsEntity entity = new AllTopicsEntity(topic, timestamp, retained, currentServerUrl);
+//            if (lastMessageText != null) {
+//                entity.setLastMessage(lastMessageText);
+//                entity.setLastMessageTimestamp(lastMsgTimestamp);
+//            }
+////            markHasUnread(topic);
+//
+//            AllTopicsEntity existing = getTopicEntitySync(topic);
+//            if (existing != null) {
+//                existing.lastSeenTimestamp = Math.max(existing.lastSeenTimestamp, timestamp);
+//                existing.hasRetained = existing.hasRetained || retained;
+//                boolean oldUnread = existing.hasUnread;
+//                if (lastMsgTimestamp > existing.getLastMessageTimestamp()) {
+//                    existing.setLastMessage(lastMessageText);
+//                    existing.setLastMessageTimestamp(lastMsgTimestamp);
+//                }
+//                AppDatabase.getInstance(app).allTopicsDao().update(existing);
+//                existing.hasUnread = oldUnread;
+//                AppDatabase.getInstance(app).allTopicsDao().update(existing);
+//            } else {
+//                AppDatabase.getInstance(app).allTopicsDao().insert(entity);
+//            }
+//        });
+//    }
+
     public void addDiscoveredTopic(String topic, long timestamp, boolean retained) {
         executor.execute(() -> {
-            // Получаем последнее сообщение из БД для этого топика
-            List<MessageEntity> lastMsg = AppDatabase.getInstance(app).messageDao()
-                    .getLastMessages(topic, currentServerUrl, 1);
-            String lastMessageText = null;
-            long lastMsgTimestamp = 0;
-            if (!lastMsg.isEmpty()) {
-                MessageEntity msg = lastMsg.get(0);
-                lastMessageText = msg.payload;
-                lastMsgTimestamp = msg.timestamp;
-            }
+            try {
+                Log.d("TopicRepository", "addDiscoveredTopic: " + topic + ", server=" + currentServerUrl);
 
-            AllTopicsEntity entity = new AllTopicsEntity(topic, timestamp, retained, currentServerUrl);
-            if (lastMessageText != null) {
-                entity.setLastMessage(lastMessageText);
-                entity.setLastMessageTimestamp(lastMsgTimestamp);
-            }
-//            markHasUnread(topic);
+                // Прямой синхронный запрос к DAO
+                List<AllTopicsEntity> existingList = AppDatabase.getInstance(app).allTopicsDao()
+                        .getTopic(topic, currentServerUrl);
+                AllTopicsEntity existing = (existingList != null && !existingList.isEmpty()) ? existingList.get(0) : null;
 
-            AllTopicsEntity existing = getTopicEntitySync(topic);
-            if (existing != null) {
-                existing.lastSeenTimestamp = Math.max(existing.lastSeenTimestamp, timestamp);
-                existing.hasRetained = existing.hasRetained || retained;
-                boolean oldUnread = existing.hasUnread;
-                if (lastMsgTimestamp > existing.getLastMessageTimestamp()) {
-                    existing.setLastMessage(lastMessageText);
-                    existing.setLastMessageTimestamp(lastMsgTimestamp);
+                // Последнее сообщение из таблицы messages
+                List<MessageEntity> lastMsg = AppDatabase.getInstance(app).messageDao()
+                        .getLastMessage(topic, currentServerUrl);
+                String lastMessageText = null;
+                long lastMsgTimestamp = 0;
+                if (lastMsg != null && !lastMsg.isEmpty()) {
+                    lastMessageText = lastMsg.get(0).payload;
+                    lastMsgTimestamp = lastMsg.get(0).timestamp;
                 }
-                AppDatabase.getInstance(app).allTopicsDao().update(existing);
-                existing.hasUnread = oldUnread;
-                AppDatabase.getInstance(app).allTopicsDao().update(existing);
-            } else {
-                AppDatabase.getInstance(app).allTopicsDao().insert(entity);
+
+                if (existing == null) {
+                    AllTopicsEntity entity = new AllTopicsEntity(topic, timestamp, retained, currentServerUrl);
+                    if (lastMessageText != null) {
+                        entity.setLastMessage(lastMessageText);
+                        entity.setLastMessageTimestamp(lastMsgTimestamp);
+                    }
+                    AppDatabase.getInstance(app).allTopicsDao().insert(entity);
+                    Log.d("TopicRepository", "Inserted new topic: " + topic);
+                } else {
+                    existing.lastSeenTimestamp = Math.max(existing.lastSeenTimestamp, timestamp);
+                    existing.hasRetained = existing.hasRetained || retained;
+                    if (lastMsgTimestamp > existing.lastMessageTimestamp) {
+                        existing.setLastMessage(lastMessageText);
+                        existing.setLastMessageTimestamp(lastMsgTimestamp);
+                    }
+                    AppDatabase.getInstance(app).allTopicsDao().update(existing);
+                    Log.d("TopicRepository", "Updated topic: " + topic);
+                }
+            } catch (Exception e) {
+                Log.e("TopicRepository", "Error in addDiscoveredTopic", e);
             }
         });
     }
 
-    private AllTopicsEntity getTopicEntitySync(String topic) {
-        List<AllTopicsEntity> list = AppDatabase.getInstance(app).allTopicsDao()
-                .getAllTopicsForServer(currentServerUrl).getValue();
-        if (list != null) {
-            for (AllTopicsEntity e : list) {
-                if (e.topicName.equals(topic)) return e;
-            }
-        }
-        return null;
-    }
+//    private AllTopicsEntity getTopicEntitySync(String topic) {
+//        List<AllTopicsEntity> list = AppDatabase.getInstance(app).allTopicsDao()
+//                .getAllTopicsForServer(currentServerUrl).getValue();
+//        if (list != null) {
+//            for (AllTopicsEntity e : list) {
+//                if (e.topicName.equals(topic)) return e;
+//            }
+//        }
+//        return null;
+//    }
 
     public void updateTopicLastMessage(String topic, String payload, long timestamp, boolean isRetained) {
         executor.execute(() -> {
@@ -248,6 +293,7 @@ public class TopicRepository {
     }
 
     public LiveData<List<AllTopicsEntity>> getAllTopicsForServer(String serverUrl) {
+        Log.d("TopicRepository", "getAllTopicsForServer called for " + serverUrl);
         return AppDatabase.getInstance(app).allTopicsDao().getAllTopicsForServer(serverUrl);
     }
 

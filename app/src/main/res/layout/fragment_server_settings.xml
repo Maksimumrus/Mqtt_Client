@@ -73,19 +73,13 @@
                     android:layout_marginBottom="8dp"
                     android:textColor="?attr/colorOnSurface"/>
 
-                <AutoCompleteTextView
+                <Spinner
                     android:id="@+id/server_spinner"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="12dp"
                     android:background="@drawable/spinner_background"
-                    android:textColor="?attr/colorOnSurface"
-                    android:singleLine="true"
-                    android:ellipsize="end"
-                    android:inputType="none"
-                    android:focusable="false"
-                    android:focusableInTouchMode="false"
-                    android:cursorVisible="false" />
+                    android:spinnerMode="dropdown" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

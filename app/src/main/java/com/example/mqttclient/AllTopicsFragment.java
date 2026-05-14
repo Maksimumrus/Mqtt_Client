@@ -3,6 +3,7 @@ package com.example.mqttclient;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,6 +15,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.mqttclient.Accessory.MqttPrefsManager;
 import com.example.mqttclient.Accessory.MqttService;
 import com.example.mqttclient.Accessory.TopicRepository;
 import com.example.mqttclient.Accessory.UiUtils;
@@ -57,12 +59,13 @@ public class AllTopicsFragment extends BaseTopicsFragment {
 
         viewModel = new ViewModelProvider(this).get(AllTopicsViewModel.class);
         viewModel.getAllTopicsTree().observe(getViewLifecycleOwner(), roots -> {
+            Log.d("AllTopicsFragment", "roots size: " + (roots == null ? "null" : roots.size()));
             progressBar.setVisibility(View.GONE);
             List<TopicTreeNode> finalRoots = roots != null ? roots : new ArrayList<>();
             adapter.setTreeRoots(finalRoots);
-            if (!finalRoots.isEmpty()) {
-                loadExpandedState();
-            }
+//            if (!finalRoots.isEmpty()) {
+//                loadExpandedState();
+//            }
         });
 
         adapter.setListener(new BaseTopicsAdapter.OnTreeNodeClickListener() {
@@ -73,7 +76,7 @@ public class AllTopicsFragment extends BaseTopicsFragment {
             }
             @Override
             public void onGroupClick(TopicTreeNode node) {
-                saveExpandedState();
+//                saveExpandedState();
             }
             @Override
             public void onActionClick(TopicTreeNode node, Object data) {
@@ -103,6 +106,8 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     @Override
     public void onResume() {
         super.onResume();
+        String current = MqttPrefsManager.getBrokerUrl(requireContext());
+        viewModel.setServerUrl(current);  // уже есть, но проверьте
         refreshList();
     }
 
@@ -139,7 +144,10 @@ public class AllTopicsFragment extends BaseTopicsFragment {
     }
 
     @Override
-    public void onServerChanged(String newFullUrl) {}
+    public void onServerChanged(String newFullUrl) {
+        viewModel.setServerUrl(newFullUrl);
+        refreshSubscriptions();
+    }
 
     @Override
     protected void refreshList() {
