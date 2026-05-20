@@ -1,6 +1,7 @@
 package com.example.mqttclient;
 
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,6 +13,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.mqttclient.Accessory.MqttPrefsManager;
@@ -21,6 +23,7 @@ import com.example.mqttclient.Accessory.UiUtils;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -39,9 +42,6 @@ public class ServerSettingsFragment extends Fragment {
     private ArrayAdapter<String> spinnerAdapter;
 
     private MqttService.ConnectionStatusListener statusListener;
-
-    private boolean isUpdatingSpinner = false;
-
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -83,6 +83,7 @@ public class ServerSettingsFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         updateStatusDisplay();
         setupConnectionStatusListener();
+        setupHintColors();
     }
 
     @Override
@@ -123,7 +124,16 @@ public class ServerSettingsFragment extends Fragment {
     private void setupSpinner() {
         fullServerList = MqttPrefsManager.getServerList(requireContext());
         updateDisplayServerList();
-        spinnerAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, displayServerList);
+        spinnerAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, displayServerList) {
+            @NonNull
+            @Override
+            public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                TextView textView = (TextView) view;
+                textView.setTextColor(ContextCompat.getColor(requireContext(), android.R.color.white));
+                return view;
+            }
+        };
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         serverSpinner.setAdapter(spinnerAdapter);
 
@@ -171,17 +181,21 @@ public class ServerSettingsFragment extends Fragment {
     }
 
     private void refreshServerList() {
-        if (isUpdatingSpinner) return;
-        isUpdatingSpinner = true;
-
         fullServerList = MqttPrefsManager.getServerList(requireContext());
         updateDisplayServerList();
 
-        ArrayAdapter<String> newAdapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_item, displayServerList);
-        newAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        serverSpinner.setAdapter(newAdapter);
-        spinnerAdapter = newAdapter;
+        spinnerAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, displayServerList) {
+            @NonNull
+            @Override
+            public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                TextView textView = (TextView) view;
+                textView.setTextColor(ContextCompat.getColor(requireContext(), android.R.color.white));
+                return view;
+            }
+        };
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        serverSpinner.setAdapter(spinnerAdapter);
 
         String currentFull = MqttPrefsManager.getBrokerUrl(requireContext());
         String currentDisplay = MqttPrefsManager.displayUrl(currentFull);
@@ -198,7 +212,6 @@ public class ServerSettingsFragment extends Fragment {
             updateStatusDisplay();
             serverSpinner.setSelection(0, false);
         }
-        isUpdatingSpinner = false;
     }
 
     private void applyServerChange(String newFullUrl) {
@@ -293,7 +306,7 @@ public class ServerSettingsFragment extends Fragment {
         }
         String selectedDisplay = selectedItem.toString();
         String fullUrl = MqttPrefsManager.fullUrl(selectedDisplay);
-        new MaterialAlertDialogBuilder(requireContext())
+        new MaterialAlertDialogBuilder(requireContext(), R.style.ThemeOverlay_MQTTClient_AlertDialog)
                 .setTitle("Удалить сервер")
                 .setMessage("Удалить сервер " + selectedDisplay + " и все связанные данные?")
                 .setPositiveButton("Удалить", (d, w) -> {
@@ -364,5 +377,22 @@ public class ServerSettingsFragment extends Fragment {
         } else {
             ledIndicator.setBackgroundResource(R.drawable.circle_red);
         }
+    }
+
+    private void setupHintColors() {
+        TextInputLayout hostLayout = getView().findViewById(R.id.edit_host).getParent().getParent() instanceof TextInputLayout ?
+                (TextInputLayout) getView().findViewById(R.id.edit_host).getParent().getParent() : null;
+        TextInputLayout portLayout = getView().findViewById(R.id.edit_port).getParent().getParent() instanceof TextInputLayout ?
+                (TextInputLayout) getView().findViewById(R.id.edit_port).getParent().getParent() : null;
+        TextInputLayout userLayout = getView().findViewById(R.id.edit_username).getParent().getParent() instanceof TextInputLayout ?
+                (TextInputLayout) getView().findViewById(R.id.edit_username).getParent().getParent() : null;
+        TextInputLayout passLayout = getView().findViewById(R.id.edit_password).getParent().getParent() instanceof TextInputLayout ?
+                (TextInputLayout) getView().findViewById(R.id.edit_password).getParent().getParent() : null;
+
+        int whiteColor = ContextCompat.getColor(requireContext(), android.R.color.white);
+        if (hostLayout != null) hostLayout.setDefaultHintTextColor(ColorStateList.valueOf(whiteColor));
+        if (portLayout != null) portLayout.setDefaultHintTextColor(ColorStateList.valueOf(whiteColor));
+        if (userLayout != null) userLayout.setDefaultHintTextColor(ColorStateList.valueOf(whiteColor));
+        if (passLayout != null) passLayout.setDefaultHintTextColor(ColorStateList.valueOf(whiteColor));
     }
 }
