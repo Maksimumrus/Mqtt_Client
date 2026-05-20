@@ -31,20 +31,31 @@
 
     <style name="ThemeOverlay.MQTTClient.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="colorSurface">@color/surface</item>
-        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorOnSurface">@color/white</item>
         <item name="colorPrimary">@color/primary</item>
         <item name="android:background">@color/surface</item>
         <item name="android:windowBackground">@color/surface</item>
 
-        <!-- Цвета для полей ввода -->
-        <item name="android:textColorHint">@color/text_primary</item>
-        <item name="android:textColor">@color/text_secondary</item>
-        <item name="android:editTextColor">@color/text_primary</item>
-        <item name="colorControlActivated">@color/primary</item>
-        <item name="colorControlNormal">@color/control_normal</item>
+        <item name="android:textColorHint">@color/white</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:editTextColor">@color/white</item>
 
-        <!-- Для списков внутри диалога -->
-        <item name="android:listDivider">@color/outline</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/DialogBodyText</item>
+
+        <item name="buttonBarPositiveButtonStyle">@style/PositiveButtonStyle</item>
+        <item name="buttonBarNegativeButtonStyle">@style/NegativeButtonStyle</item>
+    </style>
+
+    <style name="DialogBodyText" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <style name="PositiveButtonStyle" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textColor">?attr/colorPrimary</item>
+    </style>
+
+    <style name="NegativeButtonStyle" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textColor">?attr/colorPrimary</item>
     </style>
 
     <style name="ThemeOverlay.MQTTClient.SearchView" parent="Widget.AppCompat.SearchView">
