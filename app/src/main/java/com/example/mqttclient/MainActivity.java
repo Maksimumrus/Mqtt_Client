@@ -54,6 +54,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        MqttPrefsManager.initDefaultBroker(this);
+
         ledIndicator = findViewById(R.id.led_indicator);
         statusText = findViewById(R.id.connection_status);
         MaterialButton btnSettings = findViewById(R.id.btn_settings);

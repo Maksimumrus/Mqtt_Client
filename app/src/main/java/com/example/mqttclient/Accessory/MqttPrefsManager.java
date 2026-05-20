@@ -14,7 +14,7 @@ public class MqttPrefsManager {
     private static final String PREF_NAME = "mqtt_prefs";
     private static final String KEY_BROKER_URL = "broker_url";
     private static final String KEY_NOTIFICATIONS_ENABLED = "notifications_enabled";
-    public static final String DEFAULT_BROKER = "tcp://broker.emqx.io:1883";
+    public static final String DEFAULT_BROKER = "tcp://m4.wqtt.ru:11392";
 
     public static void saveBrokerUrl(Context context, String url) {
         url = normalizeUrl(url);
@@ -37,10 +37,10 @@ public class MqttPrefsManager {
     public static List<String> getServerList(Context context) {
         String json = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
                 .getString("server_list", null);
-        if (json == null) {
+        if (json == null || json.equals("[]") || json.trim().isEmpty()) {
             List<String> defaults = new ArrayList<>();
             defaults.add(DEFAULT_BROKER);
-            defaults.add("tcp://test.mosquitto.org:1883");
+            defaults.add("tcp://broker.emqx.io:1883");
             defaults.add("tcp://broker.hivemq.com:1883");
             return defaults;
         }
@@ -175,5 +175,12 @@ public class MqttPrefsManager {
         if (display == null) return "";
         if (display.startsWith("tcp://") || display.startsWith("ssl://")) return display;
         return "tcp://" + display;
+    }
+
+    public static void initDefaultBroker(Context context) {
+        String defaultBroker = "tcp://m4.wqtt.ru:11392";
+        if (MqttPrefsManager.getUsernameForServer(context, defaultBroker) == null) {
+            MqttPrefsManager.saveServerCredentials(context, defaultBroker, "u_WWHJNL", "u2tK34nX");
+        }
     }
 }

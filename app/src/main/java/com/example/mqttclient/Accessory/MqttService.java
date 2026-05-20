@@ -110,11 +110,11 @@ public class MqttService extends Service {
             String username = MqttPrefsManager.getUsernameForServer(this, brokerUrl);
             String password = MqttPrefsManager.getPasswordForServer(this, brokerUrl);
 
-            if (brokerUrl.equals(MqttPrefsManager.DEFAULT_BROKER) && username != null) {
-                Log.w(TAG, "Stored credentials for public broker, ignoring them");
-                username = null;
-                password = null;
-            }
+//            if (brokerUrl.equals(MqttPrefsManager.DEFAULT_BROKER) && username != null) {
+//                Log.w(TAG, "Stored credentials for public broker, ignoring them");
+//                username = null;
+//                password = null;
+//            }
 
             if (username != null && !username.isEmpty()) {
                 connectBuilder.simpleAuth()
